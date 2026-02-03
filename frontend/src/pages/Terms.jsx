@@ -92,7 +92,7 @@ export default function Terms() {
           <section>
             <h2 className="text-2xl font-bold mb-4">10. Contact</h2>
             <p className="text-muted-foreground leading-relaxed">
-              For questions about these Terms, contact us at legal@dropsniper.ai
+              For questions about these Terms, contact us at dropsniperai@arisolutionsinc.com
             </p>
           </section>
         </div>

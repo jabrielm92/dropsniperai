@@ -118,7 +118,7 @@ export default function Privacy() {
           <section>
             <h2 className="text-2xl font-bold mb-4">11. Contact Us</h2>
             <p className="text-muted-foreground leading-relaxed">
-              For privacy-related questions, contact us at privacy@dropsniper.ai
+              For privacy-related questions, contact us at dropsniperai@arisolutionsinc.com
             </p>
           </section>
         </div>
