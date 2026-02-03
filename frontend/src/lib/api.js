@@ -30,6 +30,9 @@ export const getProducts = (params) => api.get('/products', { params });
 export const getTopProducts = (limit = 5) => api.get('/products/top', { params: { limit } });
 export const getProduct = (id) => api.get(`/products/${id}`);
 export const getProductBrief = (id) => api.get(`/products/${id}/brief`);
+export const getTodayProducts = () => api.get('/products/today');
+export const getProductHistory = (days = 30) => api.get('/products/history', { params: { days } });
+export const getArchivedProducts = (date) => api.get(`/products/archive/${date}`);
 
 // Launch Kits
 export const generateLaunchKit = (productId) => api.post(`/launch-kit/${productId}`);
