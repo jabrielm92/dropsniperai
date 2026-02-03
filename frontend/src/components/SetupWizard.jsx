@@ -229,8 +229,10 @@ export default function SetupWizard({ onComplete, onSkip }) {
                 <ol className="text-sm text-muted-foreground space-y-2">
                   <li>1. Message <a href="https://t.me/BotFather" target="_blank" rel="noopener" className="text-blue-500 hover:underline">@BotFather</a> → /newbot</li>
                   <li>2. Copy the bot token it gives you</li>
-                  <li>3. Message <a href="https://t.me/userinfobot" target="_blank" rel="noopener" className="text-blue-500 hover:underline">@userinfobot</a> to get your Chat ID</li>
+                  <li>3. <strong className="text-yellow-500">IMPORTANT:</strong> Open your new bot and click START or send /start</li>
+                  <li>4. Message <a href="https://t.me/userinfobot" target="_blank" rel="noopener" className="text-blue-500 hover:underline">@userinfobot</a> to get YOUR personal ID</li>
                 </ol>
+                <p className="text-xs text-yellow-500 mt-3">⚠️ The Chat ID is YOUR personal ID from @userinfobot, not the bot's ID</p>
               </div>
 
               <div className="space-y-4 mb-6">
