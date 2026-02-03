@@ -269,32 +269,29 @@ async def remove_product_from_board(board_id: str, product_id: str, user: User =
     return {"success": True}
 
 # ========== SCANNER ROUTES ==========
-from services.scanners import ProductScoutEngine
-from services.competitor_spy import (
-    CompetitorStore, CompetitorAlert, CompetitorProduct,
-    generate_mock_competitor_data, detect_store_changes
-)
 from routes.tiers import check_feature_access, get_tier_limits
-
-scout_engine = ProductScoutEngine()
 
 @api_router.post("/scan/full")
 async def run_full_scan(user: User = Depends(get_current_user)):
-    """Run a full scan - uses AI if user has OpenAI key, otherwise mock data"""
-    from services.ai_browser_agent import create_agent_for_user, BROWSER_USE_AVAILABLE
+    """Run a full AI-powered scan across all sources"""
+    if not user.openai_api_key:
+        raise HTTPException(
+            status_code=400, 
+            detail="OpenAI API key required. Add your key in Settings to enable scanning."
+        )
     
-    # Try AI-powered scan if user has OpenAI key configured
-    if user.openai_api_key and BROWSER_USE_AVAILABLE:
-        agent = create_agent_for_user(user.openai_api_key)
-        results = await agent.run_full_scan()
-        results["scan_mode"] = "ai_powered"
-    else:
-        # Fallback to mock/sample data
-        results = await scout_engine.run_full_scan()
-        results["scan_mode"] = "sample_data"
-        if not user.openai_api_key:
-            results["message"] = "Add your OpenAI API key in Settings to enable AI-powered scanning"
+    from services.ai_scanner import create_scanner
     
+    # Get user's filters
+    filters = user.filters if user.filters else {}
+    
+    scanner = create_scanner(user.openai_api_key)
+    results = await scanner.run_full_scan(filters)
+    
+    if not results.get("success"):
+        raise HTTPException(status_code=500, detail=results.get("error", "Scan failed"))
+    
+    # Save scan to history
     scan_record = {
         "user_id": user.id,
         "scan_type": "full",
@@ -303,11 +300,41 @@ async def run_full_scan(user: User = Depends(get_current_user)):
     }
     await db.scan_history.insert_one(scan_record)
     
+    # Store products for dashboard
+    for product in results.get("products", []):
+        product_doc = {
+            "user_id": user.id,
+            "scan_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "is_active": True,
+            **product
+        }
+        await db.daily_products.insert_one(product_doc)
+    
     return results
 
 @api_router.get("/scan/sources/{source}")
 async def scan_single_source(source: str, user: User = Depends(get_current_user)):
-    """Scan a single data source - uses AI if configured"""
+    """Scan a single data source with AI"""
+    if not user.openai_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="OpenAI API key required. Add your key in Settings."
+        )
+    
+    valid_sources = ["tiktok", "amazon", "aliexpress", "google_trends"]
+    if source not in valid_sources:
+        raise HTTPException(status_code=400, detail=f"Invalid source. Must be one of: {valid_sources}")
+    
+    from services.ai_scanner import create_scanner
+    
+    filters = user.filters if user.filters else {}
+    scanner = create_scanner(user.openai_api_key)
+    result = await scanner.scan_source(source, filters)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Scan failed"))
+    
+    return result
     from services.ai_browser_agent import create_agent_for_user, BROWSER_USE_AVAILABLE
     
     # AI-powered scan if user has key
