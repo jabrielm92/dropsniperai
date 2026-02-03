@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Zap, ArrowLeft, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { PublicFooter } from '../components/PublicLayout';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -141,7 +142,7 @@ export default function Register() {
           </form>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            By signing up, you agree to our Terms of Service and Privacy Policy
+            By signing up, you agree to our <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link> and <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
           </p>
 
           <p className="mt-6 text-center text-muted-foreground">
@@ -152,6 +153,7 @@ export default function Register() {
           </p>
         </div>
       </div>
+      <PublicFooter />
     </div>
   );
 }
