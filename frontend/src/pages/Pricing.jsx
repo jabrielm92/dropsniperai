@@ -181,7 +181,7 @@ export default function Pricing() {
                     plan.popular 
                       ? 'bg-primary text-black hover:bg-primary/90' 
                       : plan.active 
-                        ? 'bg-white/10 hover:bg-white/20'
+                        ? 'bg-white text-black hover:bg-white/90'
                         : 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30'
                   }`}
                   onClick={() => plan.active && handleSubscribe(plan.tier)}
