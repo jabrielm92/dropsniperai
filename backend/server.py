@@ -431,6 +431,7 @@ async def mark_alert_read(alert_id: str, user: User = Depends(get_current_user))
 # ========== SATURATION RADAR ==========
 @api_router.get("/saturation/overview")
 async def get_saturation_overview(user: User = Depends(get_current_user)):
+    check_feature_access(user.subscription_tier, "saturation_radar")
     products = await db.products.find({}, {"_id": 0}).to_list(100)
     
     saturation_data = {"low": [], "medium": [], "high": []}
