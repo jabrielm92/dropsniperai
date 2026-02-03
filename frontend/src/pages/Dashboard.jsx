@@ -11,7 +11,7 @@ import {
   Package, Filter, Clock, ChevronRight, RefreshCw, Search, Shield, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDailyReport, getTopProducts, getStats, seedData, getUserKeys } from '../lib/api';
+import { getDailyReport, getTodayProducts, getStats, seedData, getUserKeys } from '../lib/api';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
