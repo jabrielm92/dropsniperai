@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -12,87 +12,6 @@ import {
 import { toast } from 'sonner';
 import { getDailyReport, getTopProducts, getStats, seedData } from '../lib/api';
 
-const ProductCard = ({ product, index }) => {
-  const navigate = useNavigate();
-  
-  const getTrendIcon = () => {
-    if (product.trend_direction === 'up') return <TrendingUp className="w-4 h-4 text-primary" />;
-    if (product.trend_direction === 'down') return <TrendingDown className="w-4 h-4 text-destructive" />;
-    return <Minus className="w-4 h-4 text-yellow-500" />;
-  };
-
-  const getSaturationClass = () => {
-    if (product.saturation_level === 'low') return 'saturation-low';
-    if (product.saturation_level === 'medium') return 'saturation-medium';
-    return 'saturation-high';
-  };
-
-  const getScoreClass = () => {
-    if (product.overall_score >= 85) return 'score-high';
-    if (product.overall_score >= 70) return 'score-medium';
-    return 'score-low';
-  };
-
-  return (
-    <Card 
-      className="bg-[#121212] border-white/5 hover:border-primary/30 transition-all duration-300 cursor-pointer card-hover overflow-hidden"
-      onClick={() => navigate(`/product/${product.id}`)}
-      data-testid={`product-card-${index}`}
-    >
-      <div className="relative">
-        <img 
-          src={product.image_url} 
-          alt={product.name}
-          className="w-full h-48 object-cover"
-        />
-        <div className="absolute top-3 right-3">
-          <Badge className={`${getScoreClass()} font-mono text-lg px-3 py-1`}>
-            {product.overall_score}
-          </Badge>
-        </div>
-        <div className="absolute bottom-3 left-3 flex gap-2">
-          {product.source_platforms?.slice(0, 2).map((platform, i) => (
-            <Badge key={i} variant="secondary" className="bg-black/60 backdrop-blur text-xs">
-              {platform}
-            </Badge>
-          ))}
-        </div>
-      </div>
-      <CardContent className="p-4">
-        <h3 className="font-bold text-lg mb-2 line-clamp-1">{product.name}</h3>
-        
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Source Cost</p>
-            <p className="font-mono font-bold">${product.source_cost.toFixed(2)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Sell Price</p>
-            <p className="font-mono font-bold text-primary">${product.recommended_price.toFixed(2)}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            {getTrendIcon()}
-            <span className={`font-mono text-sm ${product.trend_direction === 'up' ? 'text-primary' : product.trend_direction === 'down' ? 'text-destructive' : 'text-yellow-500'}`}>
-              {product.trend_percent > 0 ? '+' : ''}{product.trend_percent}%
-            </span>
-          </div>
-          <Badge className={`${getSaturationClass()} text-xs`}>
-            {product.saturation_level} competition
-          </Badge>
-        </div>
-
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>{product.active_fb_ads} FB Ads</span>
-          <span>{product.margin_percent}% margin</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -102,22 +21,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // First seed data if needed
       await seedData();
-      
       const [reportRes, productsRes, statsRes] = await Promise.all([
         getDailyReport(),
         getTopProducts(8),
         getStats()
       ]);
-      
       setReport(reportRes.data);
       setProducts(productsRes.data);
       setStats(statsRes.data);
@@ -127,7 +39,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleLogout = () => {
     logout();
@@ -140,6 +56,24 @@ export default function Dashboard() {
     await fetchData();
     setSeeding(false);
     toast.success('Data refreshed!');
+  };
+
+  const getTrendIcon = (direction) => {
+    if (direction === 'up') return <TrendingUp className="w-4 h-4 text-primary" />;
+    if (direction === 'down') return <TrendingDown className="w-4 h-4 text-destructive" />;
+    return <Minus className="w-4 h-4 text-yellow-500" />;
+  };
+
+  const getSaturationClass = (level) => {
+    if (level === 'low') return 'bg-primary/15 text-primary';
+    if (level === 'medium') return 'bg-yellow-500/15 text-yellow-500';
+    return 'bg-destructive/15 text-destructive';
+  };
+
+  const getScoreClass = (score) => {
+    if (score >= 85) return 'bg-primary/20 text-primary border-primary/30';
+    if (score >= 70) return 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30';
+    return 'bg-destructive/20 text-destructive border-destructive/30';
   };
 
   if (loading) {
@@ -280,8 +214,8 @@ export default function Dashboard() {
           </Card>
           <Card className="bg-[#121212] border-white/5">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center">
-                <Rocket className="w-6 h-6 text-secondary" />
+              <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <Rocket className="w-6 h-6 text-blue-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats?.total_launch_kits || 0}</p>
@@ -328,7 +262,63 @@ export default function Dashboard() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product, index) => (
-              <ProductCard key={product.id} product={product} index={index} />
+              <Card 
+                key={product.id}
+                className="bg-[#121212] border-white/5 hover:border-primary/30 cursor-pointer overflow-hidden group"
+                onClick={() => navigate(`/product/${product.id}`)}
+                data-testid={`product-card-${index}`}
+              >
+                <div className="relative">
+                  <img 
+                    src={product.image_url} 
+                    alt={product.name}
+                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute top-3 right-3">
+                    <Badge className={`${getScoreClass(product.overall_score)} font-mono text-lg px-3 py-1 border`}>
+                      {product.overall_score}
+                    </Badge>
+                  </div>
+                  <div className="absolute bottom-3 left-3 flex gap-2">
+                    {product.source_platforms?.slice(0, 2).map((platform, i) => (
+                      <Badge key={i} variant="secondary" className="bg-black/60 backdrop-blur text-xs">
+                        {platform}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <CardContent className="p-4">
+                  <h3 className="font-bold text-lg mb-2 line-clamp-1">{product.name}</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Source Cost</p>
+                      <p className="font-mono font-bold">${product.source_cost.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Sell Price</p>
+                      <p className="font-mono font-bold text-primary">${product.recommended_price.toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      {getTrendIcon(product.trend_direction)}
+                      <span className={`font-mono text-sm ${product.trend_direction === 'up' ? 'text-primary' : product.trend_direction === 'down' ? 'text-destructive' : 'text-yellow-500'}`}>
+                        {product.trend_percent > 0 ? '+' : ''}{product.trend_percent}%
+                      </span>
+                    </div>
+                    <Badge className={`${getSaturationClass(product.saturation_level)} text-xs`}>
+                      {product.saturation_level}
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>{product.active_fb_ads} FB Ads</span>
+                    <span>{product.margin_percent}% margin</span>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
@@ -353,9 +343,9 @@ export default function Dashboard() {
               </Button>
               <Button 
                 variant="outline" 
-                className="h-auto py-4 px-6 justify-start border-white/10 hover:border-secondary/30 hover:bg-secondary/5"
+                className="h-auto py-4 px-6 justify-start border-white/10 hover:border-blue-500/30 hover:bg-blue-500/5"
               >
-                <Search className="w-5 h-5 mr-3 text-secondary" />
+                <Search className="w-5 h-5 mr-3 text-blue-500" />
                 <div className="text-left">
                   <p className="font-medium">Manual Search</p>
                   <p className="text-xs text-muted-foreground">Search specific products</p>
