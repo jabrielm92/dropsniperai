@@ -102,3 +102,31 @@ See `/app/DEPLOYMENT_GUIDE.md` for click-by-click instructions.
 - Fully implemented via user's own bot token
 - Endpoints: `/api/telegram/test`, `/api/telegram/send-report`
 - Features: Daily reports, product alerts, competitor alerts, launch kit summaries
+- **Free tier**: Gets ONE telegram report only until paid subscription
+- **Daily Report**: Sent at 7 AM Eastern with 3-5 ready-to-launch products
+
+## Background Scheduler (APScheduler)
+- **Daily Reports**: 7:00 AM Eastern - sends to all Telegram-configured users
+- **Scheduled Scans**: Hourly check, runs based on tier frequency
+- **Archive Products**: 6:55 AM daily - archives previous day's products
+- **Tier Scan Frequencies**:
+  - Free: 24 hours
+  - Sniper: 12 hours
+  - Elite: 6 hours
+  - Agency: 4 hours
+  - Enterprise: 2 hours
+
+## Product Archive System
+- Products stored with `scan_date` field
+- Dashboard shows today's products (3-5 ready-to-launch)
+- `/api/products/today` - current day's products
+- `/api/products/history` - archived products by date
+- `/api/products/archive/{date}` - specific date's products
+
+## Admin Panel Features
+- User CRUD (add/remove/update)
+- Tier management
+- Integration status (OpenAI/Telegram configured)
+- Scheduler status & manual trigger
+- Recent activity feed
+- Payment tracking (via user tier)
