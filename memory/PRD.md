@@ -51,19 +51,43 @@ Email: `jabriel@arisolutionsinc.com` → Auto-admin on register
 
 ## Implemented Features
 - [x] JWT Authentication
+- [x] User Registration with Email Verification Flow
 - [x] Dashboard + Daily Reports
 - [x] Product Discovery + Scoring
 - [x] Launch Kit Generator
-- [x] Google Trends Integration
-- [x] Competitor Spy + Alerts
-- [x] Saturation Radar
-- [x] Shopify/WooCommerce Export
+- [x] Google Trends Integration (Elite+)
+- [x] Competitor Spy + Alerts (Elite+)
+- [x] Saturation Radar (Elite+)
+- [x] Shopify/WooCommerce Export (Elite+)
 - [x] Stripe Payments (24hr trial)
 - [x] Resend Email Notifications
 - [x] Telegram Bot Integration
 - [x] Admin Panel
-- [x] Tier-based Feature Gating
+- [x] **Tier-based Feature Gating (enforced on backend)**
 - [x] Terms of Service + Privacy Policy
+
+## Tier Feature Gating
+| Feature | Required Tier |
+|---------|---------------|
+| Basic Products | Free |
+| Daily Report | Free |
+| Launch Kit | Sniper |
+| Telegram Alerts | Elite |
+| Competitor Spy | Elite |
+| Saturation Radar | Elite |
+| Export Shopify | Elite |
+| Export WooCommerce | Elite |
+| Google Trends | Elite |
+| Unlimited Products | Elite |
+| API Access | Agency |
+| Team Seats | Agency |
+| White Label | Agency |
+
+## API Endpoint: GET /api/user/tier-status
+Returns user's current tier, limits, and feature access.
 
 ## Deployment
 See `/app/DEPLOYMENT_GUIDE.md` for click-by-click instructions.
+
+## Last Updated
+2026-02-03 - P0 & P1 completed
