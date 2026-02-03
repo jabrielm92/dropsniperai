@@ -145,7 +145,8 @@ export default function Dashboard() {
               variant="ghost" 
               size="icon" 
               onClick={() => {
-                localStorage.removeItem('setupWizardDismissed');
+                const wizardKey = `setupWizardDismissed_${user?.id}`;
+                localStorage.removeItem(wizardKey);
                 setShowWizard(true);
               }}
               className="text-muted-foreground hover:text-primary"
