@@ -308,6 +308,18 @@ async def analyze_product(product_name: str, user: User = Depends(get_current_us
 # ========== COMPETITOR SPY ==========
 @api_router.post("/competitors")
 async def add_competitor(store_url: str, user: User = Depends(get_current_user)):
+    check_feature_access(user.subscription_tier, "competitor_spy")
+    
+    # Check competitor limit
+    limits = get_tier_limits(user.subscription_tier)
+    if limits["competitors"] != -1:
+        current_count = await db.competitors.count_documents({"user_id": user.id, "is_active": True})
+        if current_count >= limits["competitors"]:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Competitor limit reached ({limits['competitors']}). Upgrade for more."
+            )
+    
     existing = await db.competitors.find_one({"user_id": user.id, "store_url": store_url})
     if existing:
         raise HTTPException(status_code=400, detail="Already monitoring this store")
