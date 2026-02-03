@@ -12,6 +12,8 @@ import Competitors from "./pages/Competitors";
 import Saturation from "./pages/Saturation";
 import Scanner from "./pages/Scanner";
 import Admin from "./pages/Admin";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
@@ -40,6 +42,8 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/pricing" element={<Pricing />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route
         path="/dashboard"
         element={
