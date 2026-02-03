@@ -558,12 +558,14 @@ from services.competitor_spy import (
     CompetitorStore, CompetitorAlert, CompetitorProduct,
     generate_mock_competitor_data, detect_store_changes
 )
+from services.ai_browser_agent import ai_browser_agent
+from services.telegram_bot import telegram_bot
 
 scout_engine = ProductScoutEngine()
 
 @api_router.post("/scan/full")
 async def run_full_scan(user: User = Depends(get_current_user)):
-    """Run a full scan across all data sources"""
+    """Run a full scan across all data sources (mock data fallback)"""
     results = await scout_engine.run_full_scan()
     
     # Store scan results
@@ -577,9 +579,78 @@ async def run_full_scan(user: User = Depends(get_current_user)):
     
     return results
 
+@api_router.post("/scan/ai-browser/full")
+async def run_ai_browser_scan(user: User = Depends(get_current_user)):
+    """Run a full AI browser scan (real browsing with browser-use)"""
+    status = ai_browser_agent.get_status()
+    if not status["is_ready"]:
+        # Fall back to mock scanner
+        results = await scout_engine.run_full_scan()
+        results["fallback"] = True
+        results["ai_status"] = status
+        return results
+    
+    results = await ai_browser_agent.run_full_scan()
+    
+    # Store scan results
+    scan_record = {
+        "user_id": user.id,
+        "scan_type": "ai_browser_full",
+        "results": results,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.scan_history.insert_one(scan_record)
+    
+    return results
+
+@api_router.post("/scan/ai-browser/{source}")
+async def run_ai_browser_source_scan(source: str, user: User = Depends(get_current_user)):
+    """Run AI browser scan for a specific source"""
+    status = ai_browser_agent.get_status()
+    if not status["is_ready"]:
+        return {"error": "AI Browser Agent not configured", "status": status}
+    
+    if source == "tiktok":
+        result = await ai_browser_agent.scan_tiktok_trending()
+    elif source == "amazon":
+        result = await ai_browser_agent.scan_amazon_movers()
+    elif source == "aliexpress":
+        result = await ai_browser_agent.scan_aliexpress_trending()
+    elif source == "google_trends":
+        result = await ai_browser_agent.scan_google_trends()
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown source: {source}")
+    
+    return result
+
+@api_router.post("/scan/ai-browser/competitor")
+async def scan_competitor_with_ai(store_url: str, user: User = Depends(get_current_user)):
+    """Scan a competitor store using AI browser"""
+    status = ai_browser_agent.get_status()
+    if not status["is_ready"]:
+        return {"error": "AI Browser Agent not configured", "status": status}
+    
+    result = await ai_browser_agent.scan_competitor_store(store_url)
+    return result
+
+@api_router.post("/scan/ai-browser/meta-ads")
+async def scan_meta_ads_with_ai(product_name: str, user: User = Depends(get_current_user)):
+    """Scan Meta Ad Library for a product using AI browser"""
+    status = ai_browser_agent.get_status()
+    if not status["is_ready"]:
+        return {"error": "AI Browser Agent not configured", "status": status}
+    
+    result = await ai_browser_agent.scan_meta_ad_library(product_name)
+    return result
+
+@api_router.get("/scan/ai-browser/status")
+async def get_ai_browser_status(user: User = Depends(get_current_user)):
+    """Get the status of the AI browser agent"""
+    return ai_browser_agent.get_status()
+
 @api_router.get("/scan/sources/{source}")
 async def scan_single_source(source: str, user: User = Depends(get_current_user)):
-    """Scan a single data source"""
+    """Scan a single data source (mock data)"""
     if source == "tiktok":
         products = await scout_engine.tiktok.scan_trending()
     elif source == "amazon":
