@@ -100,6 +100,7 @@ async def export_to_woocommerce(
     user: User = Depends(get_current_user)
 ):
     """Export products in WooCommerce format"""
+    check_feature_access(user.subscription_tier, "export_woocommerce")
     db = get_db()
     
     products = await db.products.find(
