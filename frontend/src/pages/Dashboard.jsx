@@ -4,11 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Zap, LogOut, Settings, TrendingUp, TrendingDown, Minus,
-  DollarSign, Target, AlertTriangle, Rocket, BarChart3, 
+  Target, AlertTriangle, Rocket, BarChart3, 
   Package, Filter, Clock, ChevronRight, RefreshCw, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
