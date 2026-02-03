@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Zap, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PublicFooter } from '../components/PublicLayout';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -30,13 +31,14 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex">
-      {/* Left side - Form */}
-      <div className="flex-1 flex flex-col justify-center px-8 md:px-16 lg:px-24">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-white mb-12 transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to home
-        </Link>
+    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+      <div className="flex-1 flex">
+        {/* Left side - Form */}
+        <div className="flex-1 flex flex-col justify-center px-8 md:px-16 lg:px-24">
+          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-white mb-12 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to home
+          </Link>
         
         <div className="max-w-md">
           <div className="flex items-center gap-3 mb-8">
@@ -123,6 +125,8 @@ export default function Login() {
           </div>
         </div>
       </div>
+      </div>
+      <PublicFooter />
     </div>
   );
 }
