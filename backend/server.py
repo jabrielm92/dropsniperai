@@ -1059,19 +1059,136 @@ async def send_launch_kit_telegram(kit_id: str, user: User = Depends(get_current
     user_bot.is_configured = True
     user_bot.base_url = f"https://api.telegram.org/bot{user.telegram_bot_token}"
     
-    result = await telegram_bot.send_launch_kit_summary(chat_id, kit)
+    result = await user_bot.send_launch_kit_summary(user.telegram_chat_id, kit)
     return result
 
-# ========== INTEGRATION STATUS ==========
+# ========== INTEGRATION STATUS (User's own keys) ==========
 
 @api_router.get("/integrations/status")
 async def get_integrations_status(user: User = Depends(get_current_user)):
-    """Get status of all integrations"""
+    """Get status of user's integrations"""
     return {
-        "ai_browser": ai_browser_agent.get_status(),
-        "telegram": telegram_bot.get_status(),
-        "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
-        "stripe_configured": bool(os.getenv("STRIPE_SECRET_KEY")),
+        "openai_configured": bool(user.openai_api_key),
+        "telegram_configured": bool(user.telegram_bot_token and user.telegram_chat_id),
+        "telegram_bot_token_set": bool(user.telegram_bot_token),
+        "telegram_chat_id_set": bool(user.telegram_chat_id),
+    }
+
+# ========== ADMIN ROUTES ==========
+
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """Dependency that requires admin access"""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+@api_router.get("/admin/stats")
+async def get_admin_stats(admin: User = Depends(require_admin)):
+    """Get overall platform statistics (admin only)"""
+    total_users = await db.users.count_documents({})
+    total_products = await db.products.count_documents({})
+    total_launch_kits = await db.launch_kits.count_documents({})
+    total_competitors = await db.competitors.count_documents({})
+    total_scans = await db.scan_history.count_documents({})
+    
+    # Users by tier
+    free_users = await db.users.count_documents({"subscription_tier": "free"})
+    paid_users = total_users - free_users
+    
+    # Users with integrations configured
+    users_with_openai = await db.users.count_documents({"openai_api_key": {"$ne": None}})
+    users_with_telegram = await db.users.count_documents({"telegram_bot_token": {"$ne": None}})
+    
+    return {
+        "total_users": total_users,
+        "free_users": free_users,
+        "paid_users": paid_users,
+        "users_with_openai": users_with_openai,
+        "users_with_telegram": users_with_telegram,
+        "total_products": total_products,
+        "total_launch_kits": total_launch_kits,
+        "total_competitors": total_competitors,
+        "total_scans": total_scans
+    }
+
+@api_router.get("/admin/users")
+async def get_admin_users(
+    skip: int = 0, 
+    limit: int = 50,
+    admin: User = Depends(require_admin)
+):
+    """Get all users (admin only)"""
+    users = await db.users.find(
+        {}, 
+        {"_id": 0, "password_hash": 0, "openai_api_key": 0, "telegram_bot_token": 0}
+    ).skip(skip).limit(limit).to_list(limit)
+    
+    return {
+        "users": users,
+        "total": await db.users.count_documents({})
+    }
+
+@api_router.get("/admin/users/{user_id}")
+async def get_admin_user_detail(user_id: str, admin: User = Depends(require_admin)):
+    """Get detailed user info (admin only)"""
+    user_doc = await db.users.find_one(
+        {"id": user_id}, 
+        {"_id": 0, "password_hash": 0, "openai_api_key": 0, "telegram_bot_token": 0}
+    )
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get user's activity
+    launch_kits = await db.launch_kits.count_documents({"user_id": user_id})
+    competitors = await db.competitors.count_documents({"user_id": user_id})
+    scans = await db.scan_history.count_documents({"user_id": user_id})
+    
+    return {
+        "user": user_doc,
+        "activity": {
+            "launch_kits": launch_kits,
+            "competitors_tracked": competitors,
+            "scans_run": scans
+        }
+    }
+
+@api_router.put("/admin/users/{user_id}/tier")
+async def update_user_tier(
+    user_id: str, 
+    tier: str,
+    admin: User = Depends(require_admin)
+):
+    """Update user's subscription tier (admin only)"""
+    valid_tiers = ["free", "scout", "hunter", "predator", "agency"]
+    if tier not in valid_tiers:
+        raise HTTPException(status_code=400, detail=f"Invalid tier. Must be one of: {valid_tiers}")
+    
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"subscription_tier": tier}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"success": True, "user_id": user_id, "new_tier": tier}
+
+@api_router.get("/admin/recent-activity")
+async def get_recent_activity(limit: int = 20, admin: User = Depends(require_admin)):
+    """Get recent platform activity (admin only)"""
+    # Recent scans
+    recent_scans = await db.scan_history.find(
+        {}, {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    # Recent launch kits
+    recent_kits = await db.launch_kits.find(
+        {}, {"_id": 0, "ad_copies": 0, "video_scripts": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    return {
+        "recent_scans": recent_scans,
+        "recent_launch_kits": recent_kits
     }
 
 # Health check
