@@ -59,8 +59,8 @@ export default function Register() {
       // Verify code
       await api.post('/verify/check', { email: formData.email, code: verificationCode });
       
-      // Now register the user
-      await register(formData.email, formData.password, formData.name);
+      // Now register the user (name, email, password)
+      await register(formData.name, formData.email, formData.password);
       
       toast.success('Email verified! Choose your plan to continue.');
       
