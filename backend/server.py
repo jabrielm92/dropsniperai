@@ -368,33 +368,29 @@ async def scan_single_source(source: str, user: User = Depends(get_current_user)
 
 @api_router.post("/scan/analyze/{product_name}")
 async def analyze_product(product_name: str, user: User = Depends(get_current_user)):
-    """Deep analysis of a specific product - uses Meta Ad Library AI scan if configured"""
-    from services.ai_browser_agent import create_agent_for_user, BROWSER_USE_AVAILABLE
+    """Deep analysis of a specific product"""
+    if not user.openai_api_key:
+        raise HTTPException(status_code=400, detail="OpenAI API key required")
     
-    if user.openai_api_key and BROWSER_USE_AVAILABLE:
-        agent = create_agent_for_user(user.openai_api_key)
-        result = await agent.scan_meta_ad_library(product_name)
-        return {"product_name": product_name, "analysis": result, "scan_mode": "ai_powered"}
+    from services.ai_scanner import create_scanner
+    scanner = create_scanner(user.openai_api_key)
+    result = await scanner.analyze_product(product_name)
     
-    # Fallback to mock analysis
-    analysis = await scout_engine.analyze_product(product_name)
-    analysis["scan_mode"] = "sample_data"
-    return analysis
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Analysis failed"))
+    
+    return result
 
 @api_router.get("/scan/status")
 async def get_scan_status(user: User = Depends(get_current_user)):
-    """Get AI scanning capability status for current user"""
-    from services.ai_browser_agent import BROWSER_USE_AVAILABLE
-    
+    """Get scanning capability status for current user"""
     has_key = bool(user.openai_api_key)
-    is_ready = has_key and BROWSER_USE_AVAILABLE
     
     return {
-        "ai_scanning_available": is_ready,
+        "ai_scanning_available": has_key,
         "openai_key_configured": has_key,
-        "browser_use_installed": BROWSER_USE_AVAILABLE,
-        "current_mode": "ai_powered" if is_ready else "sample_data",
-        "message": "AI scanning ready" if is_ready else "Add OpenAI API key in Settings to enable AI-powered scanning"
+        "scan_mode": "ai_powered" if has_key else "disabled",
+        "message": "AI scanning ready" if has_key else "Add OpenAI API key in Settings to enable scanning"
     }
 
 # ========== COMPETITOR SPY ==========
