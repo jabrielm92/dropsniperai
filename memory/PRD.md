@@ -1,86 +1,69 @@
 # DropSniper AI - Product Requirements Document
 
 ## Overview
-DropSniper AI is a full-stack AI-powered dropshipping product research SaaS platform that automates product discovery, validation, competitor monitoring, and launch preparation.
+AI-powered dropshipping product research SaaS platform.
+
+**Domain:** dropsniperai.arisolutionsinc.com  
+**Support:** dropsniperai@arisolutionsinc.com
 
 ## Tech Stack
-- **Frontend**: React 18 + Tailwind CSS + Shadcn UI → Vercel
-- **Backend**: FastAPI + Pydantic → Railway  
+- **Frontend**: React 18 + Tailwind + Shadcn UI → Vercel
+- **Backend**: FastAPI + Pydantic → Railway
 - **Database**: MongoDB Atlas
 - **Payments**: Stripe (24-hour trial)
-- **Notifications**: Telegram Bot API
-- **Trends**: Google Trends (pytrends)
+- **Email**: Resend (transactional emails)
+- **Notifications**: Telegram Bot API (user-provided)
 
 ## Pricing Tiers
-
-| Tier | Price | Status | Features |
-|------|-------|--------|----------|
-| **Sniper** | $29/mo | Active | 10 products/day, email, basic filters |
-| **Elite** | $79/mo | Active | Unlimited, Telegram, competitor spy, exports |
-| **Agency** | $149/mo | Coming Soon | Team seats, white-label, API |
-| **Enterprise** | Custom | Coming Soon | Custom integrations |
-
-## Implemented Features ✅
-
-### Core
-- [x] JWT Authentication
-- [x] Dashboard with daily intelligence report
-- [x] Product discovery with scoring
-- [x] Launch kit generator (ad copy, video scripts)
-- [x] Settings with configurable filters
-
-### Intelligence
-- [x] Multi-source scanner (TikTok, Amazon, AliExpress)
-- [x] Google Trends integration (pytrends)
-- [x] Saturation radar
-- [x] Competitor spy & alerts
-
-### Integrations
-- [x] Telegram bot notifications
-- [x] Stripe payments (24-hour trial)
-- [x] Shopify CSV export
-- [x] WooCommerce CSV export
-
-### Admin & Multi-tenant
-- [x] Admin panel (jabriel@arisolutionsinc.com)
-- [x] User tier management
-- [x] Per-user API key storage
-- [x] Tier-based feature gating
-
-### Pages
-- [x] Landing page (features, testimonials, Telegram preview)
-- [x] Pricing page (2 active + 2 coming soon)
-- [x] Terms of Service
-- [x] Privacy Policy
-- [x] Setup Wizard for new users
-
-## Deployment Ready
-- [x] Railway configuration (backend)
-- [x] Vercel configuration (frontend)
-- [x] MongoDB Atlas compatible
-- [x] Environment variables documented
-- [x] `/app/DEPLOYMENT_GUIDE.md` - Click-by-click instructions
+| Tier | Price | Status |
+|------|-------|--------|
+| Sniper | $29/mo | Active |
+| Elite | $79/mo | Active |
+| Agency | $149/mo | Coming Soon |
+| Enterprise | Custom | Coming Soon |
 
 ## Environment Variables
 
 ### Railway (Backend)
-- `MONGO_URL` - MongoDB connection string
-- `DB_NAME` - Database name
-- `JWT_SECRET` - Auth secret
-- `STRIPE_SECRET_KEY` - Stripe API key
-- `STRIPE_PUBLISHABLE_KEY` - Stripe public key
-- `STRIPE_WEBHOOK_SECRET` - Webhook verification
-- `FRONTEND_URL` - Vercel app URL
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MONGO_URL` | ✅ | MongoDB Atlas connection string |
+| `DB_NAME` | ✅ | Database name (`dropsniper`) |
+| `JWT_SECRET` | ✅ | 64-char random string |
+| `STRIPE_SECRET_KEY` | ✅ | Stripe secret key |
+| `STRIPE_PUBLISHABLE_KEY` | ✅ | Stripe public key |
+| `STRIPE_WEBHOOK_SECRET` | ✅ | Stripe webhook secret |
+| `RESEND_API_KEY` | ✅ | Resend API key for emails |
+| `FRONTEND_URL` | ✅ | `https://dropsniperai.arisolutionsinc.com` |
 
 ### Vercel (Frontend)
-- `REACT_APP_BACKEND_URL` - Railway backend URL
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `REACT_APP_BACKEND_URL` | ✅ | Railway backend URL |
+
+### User-Provided (via Settings page)
+- OpenAI API Key - For AI browser features
+- Telegram Bot Token - For personal alerts
+- Telegram Chat ID - For receiving messages
 
 ## Admin Access
 Email: `jabriel@arisolutionsinc.com` → Auto-admin on register
 
-## Backlog
-- [ ] Background job scheduling (daily scans)
-- [ ] Email notifications
-- [ ] Team seats (Agency tier)
-- [ ] White-label reports
-- [ ] API rate limiting
+## Implemented Features
+- [x] JWT Authentication
+- [x] Dashboard + Daily Reports
+- [x] Product Discovery + Scoring
+- [x] Launch Kit Generator
+- [x] Google Trends Integration
+- [x] Competitor Spy + Alerts
+- [x] Saturation Radar
+- [x] Shopify/WooCommerce Export
+- [x] Stripe Payments (24hr trial)
+- [x] Resend Email Notifications
+- [x] Telegram Bot Integration
+- [x] Admin Panel
+- [x] Tier-based Feature Gating
+- [x] Terms of Service + Privacy Policy
+
+## Deployment
+See `/app/DEPLOYMENT_GUIDE.md` for click-by-click instructions.
