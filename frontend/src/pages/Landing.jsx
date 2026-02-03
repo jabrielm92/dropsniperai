@@ -74,7 +74,7 @@ export default function Landing() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
         <div className="absolute top-1/4 right-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[150px]" />
         
-        <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-6">
+        <nav className="relative z-10 max-w-6xl mx-auto flex items-center justify-between px-6 py-6">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
               <Zap className="w-6 h-6 text-primary" />
