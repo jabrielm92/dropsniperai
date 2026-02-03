@@ -73,10 +73,11 @@ Example: `mongodb+srv://dropsniper_admin:YOUR_PASSWORD@dropsniper-cluster.xxxxx.
 MONGO_URL = mongodb+srv://dropsniper_admin:PASSWORD@dropsniper-cluster.xxxxx.mongodb.net/?retryWrites=true&w=majority
 DB_NAME = dropsniper
 JWT_SECRET = [generate: openssl rand -hex 32]
-STRIPE_SECRET_KEY = sk_live_51SqH0bJfB7n8DlsUz...
-STRIPE_PUBLISHABLE_KEY = pk_live_51SqH0bJfB7n8DlsUZYP9U57z...
-STRIPE_WEBHOOK_SECRET = whsec_xDcuvTejIVSq7204fK3vvmdHQ...
-FRONTEND_URL = https://your-vercel-app.vercel.app (add after Vercel deploy)
+STRIPE_SECRET_KEY = sk_live_...
+STRIPE_PUBLISHABLE_KEY = pk_live_...
+STRIPE_WEBHOOK_SECRET = whsec_...
+RESEND_API_KEY = re_...
+FRONTEND_URL = https://dropsniperai.arisolutionsinc.com
 ```
 
 ### 2.4 Deploy
@@ -111,6 +112,14 @@ Should show: `{"status":"healthy",...}`
 ```
 REACT_APP_BACKEND_URL = https://your-railway-url.up.railway.app
 ```
+
+### 3.4 Configure Custom Domain (Optional)
+1. Go to Project Settings → Domains
+2. Add `dropsniperai.arisolutionsinc.com`
+3. Add DNS records as instructed by Vercel:
+   - Type: CNAME
+   - Name: dropsniperai
+   - Value: cname.vercel-dns.com
 
 ### 3.4 Deploy
 1. Click "Deploy"
@@ -170,20 +179,27 @@ REACT_APP_BACKEND_URL = https://your-railway-url.up.railway.app
 ## Environment Variables Summary
 
 ### Railway (Backend)
-| Variable | Description |
-|----------|-------------|
-| `MONGO_URL` | MongoDB Atlas connection string |
-| `DB_NAME` | Database name (dropsniper) |
-| `JWT_SECRET` | 64-char random string for auth |
-| `STRIPE_SECRET_KEY` | Stripe secret key (sk_live_...) |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (pk_live_...) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret (whsec_...) |
-| `FRONTEND_URL` | Your Vercel app URL |
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `MONGO_URL` | MongoDB Atlas connection string | `mongodb+srv://user:pass@cluster.mongodb.net/...` |
+| `DB_NAME` | Database name | `dropsniper` |
+| `JWT_SECRET` | 64-char random string for auth | `openssl rand -hex 32` |
+| `STRIPE_SECRET_KEY` | Stripe secret key | `sk_live_...` |
+| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key | `pk_live_...` |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret | `whsec_...` |
+| `RESEND_API_KEY` | Resend API key for emails | `re_...` |
+| `FRONTEND_URL` | Your Vercel app URL | `https://dropsniperai.arisolutionsinc.com` |
 
 ### Vercel (Frontend)
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `REACT_APP_BACKEND_URL` | Your Railway backend URL | `https://dropsniper-production.up.railway.app` |
+
+### Optional (User-provided via Settings)
 | Variable | Description |
 |----------|-------------|
-| `REACT_APP_BACKEND_URL` | Your Railway backend URL |
+| OpenAI API Key | Users add their own for AI browser features |
+| Telegram Bot Token | Users add their own for personal alerts |
 
 ---
 
