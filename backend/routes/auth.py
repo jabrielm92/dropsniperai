@@ -81,8 +81,15 @@ async def login(data: UserLogin):
     )
 
 @router.get("/me", response_model=UserResponse)
-async def get_me():
-    from fastapi import Depends
-    from routes.deps import get_current_user
-    # This will be handled by the dependency
-    pass
+async def get_me(current_user: User = Depends(get_current_user)):
+    """Get current user info"""
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        subscription_tier=current_user.subscription_tier,
+        is_admin=current_user.is_admin,
+        has_openai_key=bool(current_user.openai_api_key),
+        has_telegram_token=bool(current_user.telegram_bot_token),
+        telegram_chat_id=current_user.telegram_chat_id
+    )
