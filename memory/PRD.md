@@ -1,11 +1,19 @@
 # ProductScout AI - Product Requirements Document
 
 ## Overview
-ProductScout AI is a full-stack AI-powered dropshipping product research SaaS platform that automates the entire pipeline from trend discovery to launch preparation.
+ProductScout AI is a full-stack AI-powered dropshipping product research SaaS platform that automates the entire pipeline from trend discovery to launch preparation. 
+
+**Architecture follows the original ClawdBot concept from X:**
+- AI agent controls a real browser (like a human)
+- Browses TikTok, Amazon, AliExpress, Google Trends autonomously
+- Sends results via Telegram
+- Runs on schedule (daily at 7AM style)
 
 ## Architecture
 - **Frontend**: React + Tailwind + Shadcn UI (Vercel-ready)
 - **Backend**: FastAPI + MongoDB (Railway-ready)
+- **AI Browser**: browser-use + GPT-4 (autonomous browsing)
+- **Notifications**: Telegram Bot API
 - **Database**: MongoDB Atlas
 
 ## User Personas
