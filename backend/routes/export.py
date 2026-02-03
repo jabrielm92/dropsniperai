@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from models import User, Product
 from routes.deps import get_db, get_current_user
+from routes.tiers import check_feature_access
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -24,6 +25,7 @@ async def export_to_shopify(
     user: User = Depends(get_current_user)
 ):
     """Export products in Shopify CSV format"""
+    check_feature_access(user.subscription_tier, "export_shopify")
     db = get_db()
     
     products = await db.products.find(
