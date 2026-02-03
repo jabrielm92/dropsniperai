@@ -56,6 +56,24 @@ export const getStats = () => api.get('/stats');
 // Seed data
 export const seedData = () => api.post('/seed');
 
+// Scanners
+export const runFullScan = () => api.post('/scan/full');
+export const scanSource = (source) => api.get(`/scan/sources/${source}`);
+export const analyzeProduct = (productName) => api.post(`/scan/analyze/${productName}`);
+
+// Competitors
+export const addCompetitor = (storeUrl) => api.post('/competitors', null, { params: { store_url: storeUrl } });
+export const getCompetitors = () => api.get('/competitors');
+export const getCompetitor = (id) => api.get(`/competitors/${id}`);
+export const scanCompetitor = (id) => api.post(`/competitors/${id}/scan`);
+export const removeCompetitor = (id) => api.delete(`/competitors/${id}`);
+export const getCompetitorAlerts = () => api.get('/competitors/alerts/all');
+export const markAlertRead = (id) => api.put(`/competitors/alerts/${id}/read`);
+
+// Saturation
+export const getSaturationOverview = () => api.get('/saturation/overview');
+export const getNicheSaturation = () => api.get('/saturation/niches');
+
 // Health
 export const healthCheck = () => api.get('/health');
 
