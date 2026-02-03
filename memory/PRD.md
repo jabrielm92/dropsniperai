@@ -3,37 +3,25 @@
 ## Overview
 ProductScout AI is a full-stack AI-powered dropshipping product research SaaS platform that automates the entire pipeline from trend discovery to launch preparation. 
 
-**Architecture follows the original ClawdBot concept from X:**
-- AI agent controls a real browser (like a human)
-- Browses TikTok, Amazon, AliExpress, Google Trends autonomously
-- Sends results via Telegram
-- Runs on schedule (daily at 7AM style)
-
 ## Architecture
-- **Frontend**: React + Tailwind + Shadcn UI (Vercel-ready)
-- **Backend**: FastAPI + MongoDB (Railway-ready)
+- **Frontend**: React + Tailwind + Shadcn UI (Vercel deployment)
+- **Backend**: FastAPI + MongoDB (Railway deployment)
 - **AI Browser**: browser-use + GPT-4 (autonomous browsing)
 - **Notifications**: Telegram Bot API
 - **Database**: MongoDB Atlas
+- **Payments**: Stripe
 
-## User Personas
-1. **Beginner Dropshippers** - Need guidance on what products to sell
-2. **Experienced Sellers** - Want to automate research and find winners faster
-3. **Agency Owners** - Manage multiple stores, need team collaboration
-4. **Side Hustlers** - Limited time, need efficient product discovery
-
-## Core Requirements (Static)
-- AI-powered product discovery from multiple sources
-- Automated filtering based on customizable criteria
-- Profit margin calculations with all fees included
-- Launch kit generation with ad copy and targeting
-- Daily intelligence reports
-- Competitor monitoring
-- Multi-channel notifications (Email, Telegram, In-app)
+## Tech Stack
+- React 18 with React Router
+- FastAPI with Pydantic models
+- MongoDB with Motor async driver
+- JWT authentication
+- Stripe for payments
+- pytrends for Google Trends
 
 ## What's Been Implemented
 
-### Phase 1 - MVP Core (Completed: Feb 3, 2026)
+### Phase 1 - MVP Core ✅
 - [x] User authentication (JWT-based)
 - [x] Dashboard with daily intelligence report
 - [x] Product cards with scores, trends, margins
@@ -42,115 +30,89 @@ ProductScout AI is a full-stack AI-powered dropshipping product research SaaS pl
 - [x] Settings page with configurable filters
 - [x] Pricing page with 4 subscription tiers
 
-### Phase 2 - Intelligence Layer (Completed: Feb 3, 2026)
-- [x] Scanner service with multiple data sources:
-  - TikTok trending (10M+ views hashtags)
-  - Amazon Movers & Shakers
-  - AliExpress trending products
-  - Google Trends rising searches
-  - Meta Ad Library scanner
+### Phase 2 - Intelligence Layer ✅
+- [x] Scanner service with multiple data sources
 - [x] Product analysis engine
 - [x] Saturation Radar with niche breakdown
 - [x] Competition scoring system
 
-### Phase 3 - Competitor Spy (Completed: Feb 3, 2026)
+### Phase 3 - Competitor Spy ✅
 - [x] Add competitor stores to monitor
 - [x] Store product tracking
 - [x] New product detection
 - [x] Alert system for changes
-- [x] Competitor product details view
 
-### Phase 4 - AI Browser Agent (Completed: Feb 3, 2026)
-- [x] browser-use library integration
-- [x] GPT-4 powered autonomous browsing
-- [x] Task definitions for each data source:
-  - TikTok: Browse hashtags, extract viral products
-  - Amazon: Navigate Movers & Shakers
-  - AliExpress: Find trending products & pricing
-  - Google Trends: Extract rising search terms
-  - Meta Ad Library: Analyze competitor ads
-  - Competitor stores: Scan Shopify stores
+### Phase 4 - AI Browser Agent ✅
+- [x] browser-use library integration (prepared)
+- [x] GPT-4 powered autonomous browsing (prepared)
 - [x] Fallback to mock data when not configured
 - [x] Status API to check configuration
 
-### Phase 5 - Telegram Integration (Completed: Feb 3, 2026)
+### Phase 5 - Telegram Integration ✅
 - [x] Telegram Bot service
 - [x] Daily report message formatting
 - [x] Product alert messages
 - [x] Competitor alert messages
-- [x] Launch kit summary messages
 - [x] Connect chat ID from Settings
 - [x] Send test report button
 
-### Phase 6 - Multi-Tenant Architecture & Admin Panel (Completed: Feb 3, 2026)
-- [x] User API Key Management (OpenAI, Telegram credentials)
-- [x] Settings page with key status indicators
-- [x] Admin role assignment for `jabriel@arisolutionsinc.com`
-- [x] Admin Panel with:
-  - [x] Platform stats (users, products, scans, launch kits)
-  - [x] User management with tier updates
-  - [x] Recent activity monitoring (scans, launch kits)
-  - [x] Integration status per user (OpenAI, Telegram configured)
-- [x] Admin link in Dashboard header (conditional for admins)
-- [x] Graceful fallback to mock data when user keys not configured
-- [x] **Quick Setup Wizard** for new users:
-  - [x] 4-step guided onboarding flow
-  - [x] OpenAI API key setup with instructions
-  - [x] Telegram bot setup with step-by-step guide
-  - [x] Auto-triggers on first login when no keys configured
-  - [x] "Skip for now" option with localStorage persistence
+### Phase 6 - Multi-Tenant & Admin ✅
+- [x] User API Key Management
+- [x] Admin Panel with platform stats
+- [x] User management with tier updates
+- [x] Quick Setup Wizard for new users
+- [x] Re-run Setup Wizard button in Dashboard
 
-## Prioritized Backlog
+### Phase 7 - Advanced Features ✅
+- [x] Real Google Trends integration (pytrends)
+  - Rising trends API
+  - Keyword interest over time
+  - Related queries
+  - Product trend analysis
+- [x] One-click Shopify export
+- [x] One-click WooCommerce export
+- [x] Export history tracking
+- [x] Stripe payment integration
+  - Checkout sessions
+  - Webhook handling
+  - Customer portal
+  - Subscription management
 
-### P0 - Ready to Enable (Just add API keys)
-- [ ] **Add OPENAI_API_KEY** → Enables AI Browser Agent (autonomous browsing)
-- [ ] **Add TELEGRAM_BOT_TOKEN** → Enables Telegram daily reports & alerts
-- [ ] **Add STRIPE_SECRET_KEY** → Enables subscription payments
+### Phase 8 - Backend Refactoring ✅
+- [x] Modular route structure:
+  - `/routes/auth.py` - Authentication
+  - `/routes/products.py` - Product management
+  - `/routes/users.py` - User key management
+  - `/routes/admin.py` - Admin panel
+  - `/routes/trends.py` - Google Trends
+  - `/routes/export.py` - E-commerce export
+  - `/routes/payments.py` - Stripe payments
+  - `/routes/deps.py` - Shared dependencies
 
-### P1 - High Priority
-- [ ] Background job scheduling (cron for daily scans at 7AM)
-- [ ] Email notifications (SendGrid/Resend integration)
-- [ ] User onboarding flow
-- [ ] Product boards/collections feature
+### Phase 9 - Deployment Ready ✅
+- [x] Vercel configuration (vercel.json)
+- [x] Railway configuration (railway.toml, Procfile)
+- [x] MongoDB Atlas ready
+- [x] Environment variable documentation
+- [x] Deployment guides (DEPLOY.md)
 
-### P2 - Medium Priority
+## API Keys Configured
+- OpenAI API Key: ✅ Configured
+- Telegram Bot Token: ✅ Configured  
+- Stripe Keys: ✅ Configured
+
+## Deployment URLs
+- Frontend: Deploy to Vercel
+- Backend: Deploy to Railway
+- Database: MongoDB Atlas
+
+## Admin Access
+- Email: jabriel@arisolutionsinc.com
+- Auto-granted admin role on registration
+
+## Remaining Backlog
+- [ ] Background job scheduling (cron for daily scans)
+- [ ] Email notifications (SendGrid/Resend)
+- [ ] Real-time AI browser scanning (browser-use activation)
 - [ ] Advanced analytics dashboard
-- [ ] Export reports to PDF
 - [ ] Team collaboration features
-- [ ] API access for power users
-- [ ] Seasonal trend calendar
-
-### P3 - Nice to Have
-- [ ] Chrome extension for quick product analysis
-- [ ] Direct Shopify/WooCommerce import
-- [ ] Price tracking history
-- [ ] AI chat assistant for product questions
-
-## Next Tasks List
-1. Integrate OpenAI API for enhanced ad copy generation
-2. Set up Telegram Bot for push notifications
-3. Implement Stripe subscriptions
-4. Deploy: Frontend to Vercel, Backend to Railway
-5. Replace mock scanner data with real scraping logic
-6. Add email notification service
-
-## Technical Decisions
-- Using simulated/mock data for scanners (structured for easy replacement with real scraping)
-- JWT authentication with 24-hour token expiration
-- MongoDB for flexible document storage
-- Shadcn UI for consistent component library
-- Dark theme optimized for long working sessions
-
-## Data Sources (Simulated - Ready for Real Integration)
-| Source | Data Type | Implementation Status |
-|--------|-----------|----------------------|
-| TikTok | Trending hashtags, viral products | Mock (ready for scraping) |
-| Amazon | Movers & Shakers | Mock (ready for API/scraping) |
-| AliExpress | Trending, pricing | Mock (ready for scraping) |
-| Google Trends | Rising searches | Mock (ready for API) |
-| Meta Ad Library | Competition analysis | Mock (ready for API) |
-
-## Deployment Configuration
-- Frontend: Vercel (process.env.REACT_APP_BACKEND_URL)
-- Backend: Railway (port 8001, /api prefix)
-- Database: MongoDB Atlas (MONGO_URL env var)
