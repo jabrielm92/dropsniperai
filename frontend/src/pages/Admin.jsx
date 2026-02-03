@@ -184,6 +184,34 @@ export default function Admin() {
       <main className="p-6 max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
 
+        {/* Scheduler Status */}
+        <Card className="bg-[#121212] border-white/5 mb-8">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-lg ${schedulerStatus?.running ? 'bg-green-500/10' : 'bg-red-500/10'} flex items-center justify-center`}>
+                  <Clock className={`w-5 h-5 ${schedulerStatus?.running ? 'text-green-500' : 'text-red-500'}`} />
+                </div>
+                <div>
+                  <p className="font-medium">Background Scheduler</p>
+                  <p className="text-xs text-muted-foreground">
+                    {schedulerStatus?.running ? 'Running - Daily reports at 7 AM Eastern' : 'Not running'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleTriggerReports}
+                disabled={triggeringReports}
+                variant="outline"
+                className="border-primary/30 text-primary"
+              >
+                {triggeringReports ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+                Send Reports Now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats Overview */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
