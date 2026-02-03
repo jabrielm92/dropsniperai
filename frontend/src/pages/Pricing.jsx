@@ -83,7 +83,7 @@ export default function Pricing() {
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
               <Zap className="w-6 h-6 text-primary" />
             </div>
-            <span className="font-bold text-xl">ProductScout AI</span>
+            <span className="font-bold text-xl">DropSniper AI</span>
           </Link>
           <Link to="/">
             <Button variant="ghost" className="text-muted-foreground hover:text-white">

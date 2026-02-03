@@ -124,7 +124,7 @@ export default function Dashboard() {
               <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
                 <Zap className="w-6 h-6 text-primary" />
               </div>
-              <span className="font-bold text-xl hidden sm:block">ProductScout AI</span>
+              <span className="font-bold text-xl hidden sm:block">DropSniper AI</span>
             </div>
           </div>
           

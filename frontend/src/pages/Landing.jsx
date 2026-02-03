@@ -61,7 +61,7 @@ export default function Landing() {
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
               <Zap className="w-6 h-6 text-primary" />
             </div>
-            <span className="font-bold text-xl tracking-tight">ProductScout AI</span>
+            <span className="font-bold text-xl tracking-tight">DropSniper AI</span>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/pricing">
@@ -252,10 +252,10 @@ export default function Landing() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Zap className="w-5 h-5 text-primary" />
-            <span className="font-bold">ProductScout AI</span>
+            <span className="font-bold">DropSniper AI</span>
           </div>
           <div className="text-sm text-muted-foreground">
-            © 2026 ProductScout AI. All rights reserved.
+            © 2026 DropSniper AI. All rights reserved.
           </div>
         </div>
       </footer>

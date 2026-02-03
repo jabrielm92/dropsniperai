@@ -108,7 +108,7 @@ export default function SetupWizard({ onComplete, onSkip }) {
               <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4">
                 <Sparkles className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Welcome to ProductScout AI!</h2>
+              <h2 className="text-2xl font-bold mb-2">Welcome to DropSniper AI!</h2>
               <p className="text-muted-foreground mb-6">
                 Let's get you set up in under 2 minutes. Connect your API keys to unlock AI-powered product discovery.
               </p>
@@ -296,7 +296,7 @@ export default function SetupWizard({ onComplete, onSkip }) {
               </div>
               <h2 className="text-2xl font-bold mb-2">You're All Set!</h2>
               <p className="text-muted-foreground mb-6">
-                Your ProductScout AI is ready. Start discovering winning products now!
+                Your DropSniper AI is ready. Start discovering winning products now!
               </p>
               
               <div className="space-y-3 text-left mb-6">

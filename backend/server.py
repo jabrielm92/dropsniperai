@@ -1,4 +1,4 @@
-"""ProductScout AI - Main FastAPI Application"""
+"""DropSniper AI - Main FastAPI Application"""
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer
 from dotenv import load_dotenv
@@ -33,7 +33,7 @@ from routes.deps import init_db, get_current_user, get_db
 init_db(db, JWT_SECRET)
 
 # Create app
-app = FastAPI(title="ProductScout AI API", version="2.0.0")
+app = FastAPI(title="DropSniper AI API", version="2.0.0")
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -475,7 +475,7 @@ async def test_telegram(user: User = Depends(get_current_user)):
     
     result = await user_bot.send_message(
         user.telegram_chat_id,
-        "🎉 <b>ProductScout AI Connected!</b>\n\nYour bot is working! You'll receive daily reports and alerts here."
+        "🎉 <b>DropSniper AI Connected!</b>\n\nYour bot is working! You'll receive daily reports and alerts here."
     )
     
     return {"success": result.get("success", False), "result": result}

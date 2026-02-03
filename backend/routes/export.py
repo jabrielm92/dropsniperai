@@ -47,7 +47,7 @@ async def export_to_shopify(
             "Vendor": "ProductScout AI",
             "Product Category": product.category,
             "Type": product.category,
-            "Tags": f"trending, {product.category.lower()}, productscout",
+            "Tags": f"trending, {product.category.lower()}, dropsniper",
             "Published": "TRUE",
             "Option1 Name": "Title",
             "Option1 Value": "Default Title",
@@ -156,7 +156,7 @@ async def export_to_woocommerce(
             "Position": "0",
             "Meta: _source_cost": str(product.source_cost),
             "Meta: _margin_percent": str(product.margin_percent),
-            "Meta: _productscout_id": product.id
+            "Meta: _dropsniper_id": product.id
         })
     
     # Log export

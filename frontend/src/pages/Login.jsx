@@ -114,7 +114,7 @@ export default function Login() {
         <div className="max-w-md text-center">
           <div className="text-6xl font-black mb-6 gradient-text">$100k+</div>
           <p className="text-xl text-muted-foreground mb-4">
-            Average monthly revenue for top ProductScout users
+            Average monthly revenue for top DropSniper users
           </p>
           <div className="flex justify-center gap-1">
             {[...Array(5)].map((_, i) => (
