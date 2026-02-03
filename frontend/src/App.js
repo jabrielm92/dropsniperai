@@ -11,6 +11,7 @@ import Pricing from "./pages/Pricing";
 import Competitors from "./pages/Competitors";
 import Saturation from "./pages/Saturation";
 import Scanner from "./pages/Scanner";
+import Admin from "./pages/Admin";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
