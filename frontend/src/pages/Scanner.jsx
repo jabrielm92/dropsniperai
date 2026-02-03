@@ -7,10 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Switch } from '../components/ui/switch';
 import { 
   ArrowLeft, Play, Loader2, RefreshCw, TrendingUp,
-  Package, Search, BarChart3, Globe, Bot, Zap, AlertTriangle
+  Package, Search, BarChart3, Globe, Bot, Zap, AlertTriangle, Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { runFullScan, scanSource, runAiBrowserScan, getAiBrowserStatus } from '../lib/api';
+import { runFullScan, scanSource, getScanStatus } from '../lib/api';
 
 export default function Scanner() {
   const navigate = useNavigate();
