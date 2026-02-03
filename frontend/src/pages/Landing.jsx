@@ -329,7 +329,7 @@ export default function Landing() {
             Ready to Find Your <span className="text-primary">First Winner?</span>
           </h2>
           <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-            Join 2,500+ dropshippers who automated their product research. Start your free 24-hour trial today.
+            Join smart dropshippers who automated their product research. Start your free 24-hour trial today.
           </p>
           <Link to="/register">
             <Button size="lg" className="bg-primary text-black font-bold text-lg px-12 py-6 hover:bg-primary/90">
