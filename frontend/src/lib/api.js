@@ -91,6 +91,7 @@ export const sendLaunchKitTelegram = (kitId) => api.post(`/telegram/send-launch-
 export const getUserKeys = () => api.get('/user/keys');
 export const updateUserKeys = (keys) => api.put('/user/keys', keys);
 export const deleteUserKey = (keyType) => api.delete(`/user/keys/${keyType}`);
+export const getTierStatus = () => api.get('/user/tier-status');
 
 // Integration Status
 export const getIntegrationsStatus = () => api.get('/integrations/status');
