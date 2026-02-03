@@ -319,14 +319,20 @@ export default function Admin() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Users ({totalUsers})</CardTitle>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-[#0A0A0A] border-white/10"
-                />
+              <div className="flex items-center gap-3">
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-[#0A0A0A] border-white/10"
+                  />
+                </div>
+                <Button onClick={() => setShowAddUser(true)} className="bg-primary text-black font-bold">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add User
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -366,21 +372,29 @@ export default function Admin() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-1">
-                          {u.openai_api_key && (
+                          {u.has_openai_key && (
                             <Badge variant="outline" className="text-xs text-green-500 border-green-500/30">OpenAI</Badge>
                           )}
-                          {u.telegram_bot_token && (
+                          {u.has_telegram && (
                             <Badge variant="outline" className="text-xs text-blue-500 border-blue-500/30">Telegram</Badge>
                           )}
-                          {!u.openai_api_key && !u.telegram_bot_token && (
+                          {!u.has_openai_key && !u.has_telegram && (
                             <span className="text-xs text-muted-foreground">None</span>
                           )}
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
-                          <ChevronRight className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                            onClick={() => setShowDeleteConfirm(u)}
+                            disabled={u.is_admin}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
