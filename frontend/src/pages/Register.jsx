@@ -36,7 +36,7 @@ export default function Register() {
     "Full supplier sourcing",
     "Launch kit generator",
     "Profit calculator",
-    "7-day free trial"
+    "24-hour free trial"
   ];
 
   return (
@@ -45,7 +45,7 @@ export default function Register() {
       <div className="hidden lg:flex flex-1 bg-[#0d0d0d] flex-col justify-center p-12">
         <div className="max-w-md">
           <h2 className="text-3xl font-bold mb-8">
-            Join <span className="text-primary">10,000+</span> sellers finding winners daily
+            Use the system <span className="text-primary">top sellers</span> utilize to scale over and over
           </h2>
           <ul className="space-y-4">
             {benefits.map((benefit, i) => (

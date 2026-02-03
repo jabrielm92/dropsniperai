@@ -39,14 +39,23 @@ app = FastAPI(title="DropSniper AI API", version="2.0.0")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# CORS
+# CORS - Read from environment or allow specific origins
+CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*')
+if CORS_ORIGINS == '*':
+    origins = ["*"]
+else:
+    origins = [origin.strip() for origin in CORS_ORIGINS.split(',')]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Admin email
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'jabriel@arisolutionsinc.com')
 
 # Main API router
 api_router = APIRouter(prefix="/api")
