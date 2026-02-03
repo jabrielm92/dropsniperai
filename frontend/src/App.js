@@ -14,6 +14,7 @@ import Scanner from "./pages/Scanner";
 import Admin from "./pages/Admin";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import Contact from "./pages/Contact";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
@@ -44,6 +45,7 @@ function AppRoutes() {
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/contact" element={<Contact />} />
       <Route
         path="/dashboard"
         element={
