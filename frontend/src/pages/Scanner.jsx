@@ -107,12 +107,12 @@ export default function Scanner() {
             {scanning ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {useAiBrowser ? 'AI Browsing...' : 'Scanning...'}
+                Scanning...
               </>
             ) : (
               <>
-                {useAiBrowser ? <Bot className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-                {useAiBrowser ? 'Run AI Browser Scan' : 'Run Full Scan'}
+                {aiStatus?.ai_scanning_available ? <Bot className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+                Run Full Scan
               </>
             )}
           </Button>
