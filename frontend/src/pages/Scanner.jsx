@@ -119,45 +119,49 @@ export default function Scanner() {
           </Button>
         </div>
 
-        {/* AI Browser Mode Toggle */}
-        <Card className={`mb-8 ${useAiBrowser ? 'bg-primary/10 border-primary/30' : 'bg-[#121212] border-white/5'}`}>
+        {/* AI Scanner Status */}
+        <Card className={`mb-8 ${aiStatus?.ai_scanning_available ? 'bg-primary/10 border-primary/30' : 'bg-[#121212] border-white/5'}`}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl ${useAiBrowser ? 'bg-primary/20' : 'bg-white/5'} flex items-center justify-center`}>
-                  <Bot className={`w-6 h-6 ${useAiBrowser ? 'text-primary' : 'text-muted-foreground'}`} />
+                <div className={`w-12 h-12 rounded-xl ${aiStatus?.ai_scanning_available ? 'bg-primary/20' : 'bg-white/5'} flex items-center justify-center`}>
+                  <Bot className={`w-6 h-6 ${aiStatus?.ai_scanning_available ? 'text-primary' : 'text-muted-foreground'}`} />
                 </div>
                 <div>
                   <h3 className="font-bold flex items-center gap-2">
-                    AI Browser Mode
-                    {aiStatus?.is_ready ? (
-                      <Badge className="bg-primary/20 text-primary">Ready</Badge>
+                    Scan Mode: {aiStatus?.current_mode === 'ai_powered' ? 'AI-Powered' : 'Sample Data'}
+                    {aiStatus?.ai_scanning_available ? (
+                      <Badge className="bg-primary/20 text-primary">AI Ready</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-muted-foreground">Not Configured</Badge>
+                      <Badge variant="outline" className="text-muted-foreground">Sample Mode</Badge>
                     )}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {aiStatus?.is_ready 
-                      ? 'AI will autonomously browse websites like a human (takes 5-10 min per source)'
-                      : 'Add OPENAI_API_KEY to enable autonomous browsing'}
+                    {aiStatus?.ai_scanning_available 
+                      ? 'AI will autonomously browse websites like a human using your OpenAI key'
+                      : 'Using sample data. Add your OpenAI API key in Settings to enable AI scanning.'}
                   </p>
                 </div>
               </div>
-              <Switch
-                checked={useAiBrowser}
-                onCheckedChange={setUseAiBrowser}
-                disabled={!aiStatus?.is_ready}
-              />
+              {!aiStatus?.ai_scanning_available && (
+                <Button 
+                  variant="outline"
+                  onClick={() => navigate('/settings')}
+                  className="border-primary/30 text-primary"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Add API Key
+                </Button>
+              )}
             </div>
             
-            {!aiStatus?.is_ready && (
+            {!aiStatus?.ai_scanning_available && (
               <div className="mt-4 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm text-yellow-500 font-medium">OpenAI API Key Required</p>
+                  <p className="text-sm text-yellow-500 font-medium">OpenAI API Key Required for AI Scanning</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Go to Settings → Integrations to add your OpenAI API key and enable AI Browser mode.
-                    This mode uses GPT-4 to control a real browser and extract data from websites.
+                    Go to Settings → API Keys to add your OpenAI API key. The AI will then browse TikTok, Amazon, AliExpress, and Google Trends autonomously.
                   </p>
                 </div>
               </div>
