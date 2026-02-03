@@ -104,8 +104,13 @@ export const getIntegrationsStatus = () => api.get('/integrations/status');
 export const getAdminStats = () => api.get('/admin/stats');
 export const getAdminUsers = (skip = 0, limit = 50) => api.get('/admin/users', { params: { skip, limit } });
 export const getAdminUserDetail = (userId) => api.get(`/admin/users/${userId}`);
+export const createAdminUser = (data) => api.post('/admin/users', data);
+export const updateAdminUser = (userId, data) => api.put(`/admin/users/${userId}`, data);
+export const deleteAdminUser = (userId) => api.delete(`/admin/users/${userId}`);
 export const updateUserTier = (userId, tier) => api.put(`/admin/users/${userId}/tier`, null, { params: { tier } });
 export const getRecentActivity = (limit = 20) => api.get('/admin/activity', { params: { limit } });
+export const getSchedulerStatus = () => api.get('/admin/scheduler/status');
+export const triggerDailyReports = () => api.post('/admin/scheduler/trigger-reports');
 
 // Google Trends
 export const getRisingTrends = (geo = 'US') => api.get('/trends/rising', { params: { geo } });
