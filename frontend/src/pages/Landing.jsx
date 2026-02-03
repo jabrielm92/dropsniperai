@@ -118,7 +118,7 @@ export default function Landing() {
             </div>
             
             <p className="text-sm text-muted-foreground">
-              ✓ No credit card required &nbsp; ✓ Cancel anytime &nbsp; ✓ 2,500+ sellers trust us
+              ✓ No credit card required &nbsp; ✓ Cancel anytime &nbsp; ✓ 24-hour free trial
             </p>
           </div>
         </div>
