@@ -74,6 +74,22 @@ export const markAlertRead = (id) => api.put(`/competitors/alerts/${id}/read`);
 export const getSaturationOverview = () => api.get('/saturation/overview');
 export const getNicheSaturation = () => api.get('/saturation/niches');
 
+// AI Browser Scanner
+export const runAiBrowserScan = () => api.post('/scan/ai-browser/full');
+export const runAiBrowserSourceScan = (source) => api.post(`/scan/ai-browser/${source}`);
+export const scanCompetitorWithAi = (storeUrl) => api.post('/scan/ai-browser/competitor', null, { params: { store_url: storeUrl } });
+export const scanMetaAdsWithAi = (productName) => api.post('/scan/ai-browser/meta-ads', null, { params: { product_name: productName } });
+export const getAiBrowserStatus = () => api.get('/scan/ai-browser/status');
+
+// Telegram
+export const getTelegramStatus = () => api.get('/telegram/status');
+export const connectTelegram = (chatId) => api.post('/telegram/connect', null, { params: { chat_id: chatId } });
+export const sendTelegramReport = () => api.post('/telegram/send-report');
+export const sendLaunchKitTelegram = (kitId) => api.post(`/telegram/send-launch-kit/${kitId}`);
+
+// Integration Status
+export const getIntegrationsStatus = () => api.get('/integrations/status');
+
 // Health
 export const healthCheck = () => api.get('/health');
 
