@@ -8,7 +8,7 @@ import SetupWizard from '../components/SetupWizard';
 import { 
   Zap, LogOut, Settings, TrendingUp, TrendingDown, Minus,
   Target, AlertTriangle, Rocket, BarChart3, 
-  Package, Filter, Clock, ChevronRight, RefreshCw, Search, Shield
+  Package, Filter, Clock, ChevronRight, RefreshCw, Search, Shield, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDailyReport, getTopProducts, getStats, seedData, getUserKeys } from '../lib/api';
@@ -137,6 +137,19 @@ export default function Dashboard() {
               className="text-muted-foreground hover:text-white"
             >
               <RefreshCw className={`w-5 h-5 ${seeding ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => {
+                localStorage.removeItem('setupWizardDismissed');
+                setShowWizard(true);
+              }}
+              className="text-muted-foreground hover:text-primary"
+              title="Setup Wizard"
+              data-testid="setup-wizard-btn"
+            >
+              <Sparkles className="w-5 h-5" />
             </Button>
             {user?.is_admin && (
               <Link to="/admin">
