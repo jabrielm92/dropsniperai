@@ -101,13 +101,15 @@ export default function Dashboard() {
 
   const handleWizardComplete = () => {
     setShowWizard(false);
-    localStorage.setItem('setupWizardDismissed', 'true');
+    const wizardKey = `setupWizardDismissed_${user?.id}`;
+    localStorage.setItem(wizardKey, 'true');
     fetchData(); // Refresh to get updated key status
   };
 
   const handleWizardSkip = () => {
     setShowWizard(false);
-    localStorage.setItem('setupWizardDismissed', 'true');
+    const wizardKey = `setupWizardDismissed_${user?.id}`;
+    localStorage.setItem(wizardKey, 'true');
   };
 
   return (
