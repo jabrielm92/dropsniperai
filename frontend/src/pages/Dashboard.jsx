@@ -29,16 +29,17 @@ export default function Dashboard() {
       await seedData();
       const [reportRes, productsRes, statsRes, keysRes] = await Promise.all([
         getDailyReport(),
-        getTopProducts(8),
+        getTodayProducts(),
         getStats(),
         getUserKeys()
       ]);
       setReport(reportRes.data);
-      setProducts(productsRes.data);
+      setProducts(productsRes.data.products || productsRes.data);
       setStats(statsRes.data);
       
-      // Show wizard if user hasn't configured any keys and hasn't dismissed it
-      const wizardDismissed = localStorage.getItem('setupWizardDismissed');
+      // Show wizard if user hasn't configured any keys and hasn't dismissed it (per-user)
+      const wizardKey = `setupWizardDismissed_${user?.id}`;
+      const wizardDismissed = localStorage.getItem(wizardKey);
       if (!wizardDismissed && !keysRes.data.has_openai_key && !keysRes.data.has_telegram_token) {
         setShowWizard(true);
       }
@@ -48,7 +49,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchData();
