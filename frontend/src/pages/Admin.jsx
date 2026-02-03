@@ -457,6 +457,87 @@ export default function Admin() {
           </div>
         )}
       </main>
+
+      {/* Add User Modal */}
+      <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
+        <DialogContent className="bg-[#121212] border-white/10">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                value={newUser.name}
+                onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                className="bg-[#0A0A0A] border-white/10"
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                className="bg-[#0A0A0A] border-white/10"
+                placeholder="john@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                className="bg-[#0A0A0A] border-white/10"
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Subscription Tier</Label>
+              <select
+                value={newUser.subscription_tier}
+                onChange={(e) => setNewUser({ ...newUser, subscription_tier: e.target.value })}
+                className="w-full bg-[#0A0A0A] border border-white/10 rounded px-3 py-2 capitalize"
+              >
+                {tiers.map(tier => (
+                  <option key={tier} value={tier}>{tier}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddUser(false)}>Cancel</Button>
+            <Button onClick={handleAddUser} disabled={addingUser} className="bg-primary text-black">
+              {addingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create User'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(null)}>
+        <DialogContent className="bg-[#121212] border-white/10">
+          <DialogHeader>
+            <DialogTitle className="text-red-500">Delete User</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground py-4">
+            Are you sure you want to delete <span className="text-white font-medium">{showDeleteConfirm?.name}</span> ({showDeleteConfirm?.email})? 
+            This will also delete all their data including scan history, launch kits, and settings.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>Cancel</Button>
+            <Button 
+              onClick={() => handleDeleteUser(showDeleteConfirm?.id)} 
+              disabled={deletingUser}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {deletingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete User'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
