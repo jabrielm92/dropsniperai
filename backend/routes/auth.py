@@ -3,15 +3,15 @@ from fastapi import APIRouter, HTTPException
 from datetime import datetime, timezone, timedelta
 import jwt
 import hashlib
-import secrets
+import os
 
 from models import User, UserCreate, UserLogin, UserResponse, TokenResponse
 from routes.deps import get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Admin email
-ADMIN_EMAIL = "jabriel@arisolutionsinc.com"
+# Admin email from environment
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'jabriel@arisolutionsinc.com')
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
