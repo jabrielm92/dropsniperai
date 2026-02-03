@@ -8,6 +8,9 @@ import ProductDetail from "./pages/ProductDetail";
 import LaunchKit from "./pages/LaunchKit";
 import Settings from "./pages/Settings";
 import Pricing from "./pages/Pricing";
+import Competitors from "./pages/Competitors";
+import Saturation from "./pages/Saturation";
+import Scanner from "./pages/Scanner";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
