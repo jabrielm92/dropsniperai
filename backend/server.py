@@ -68,6 +68,7 @@ from routes.admin import router as admin_router
 from routes.trends import router as trends_router
 from routes.export import router as export_router
 from routes.payments import router as payments_router
+from routes.contact import router as contact_router
 
 api_router.include_router(auth_router)
 api_router.include_router(products_router)
@@ -76,6 +77,7 @@ api_router.include_router(admin_router)
 api_router.include_router(trends_router)
 api_router.include_router(export_router)
 api_router.include_router(payments_router)
+api_router.include_router(contact_router)
 
 # ========== AUTH ME ENDPOINT ==========
 @api_router.get("/auth/me", response_model=UserResponse)
