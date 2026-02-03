@@ -14,45 +14,39 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 # Initialize Stripe
 stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
-PRICE_IDS = {
-    "scout": "price_scout_monthly",
-    "hunter": "price_hunter_monthly",
-    "predator": "price_predator_monthly",
-    "agency": "price_agency_monthly"
+# Tier pricing in cents
+TIER_PRICES = {
+    "sniper": 2900,     # $29/month
+    "elite": 7900,      # $79/month
+    "agency": 14900,    # $149/month
+    "enterprise": 0     # Custom pricing
 }
 
-TIER_PRICES = {
-    "scout": 2900,      # $29/month
-    "hunter": 7900,     # $79/month
-    "predator": 14900,  # $149/month
-    "agency": 29900     # $299/month
-}
+# 24-hour trial
+TRIAL_HOURS = 24
 
 class CreateCheckoutRequest(BaseModel):
     tier: str
     success_url: str
     cancel_url: str
 
-class SubscriptionUpdate(BaseModel):
-    new_tier: str
-
 @router.post("/create-checkout")
 async def create_checkout_session(
     request: CreateCheckoutRequest,
     user: User = Depends(get_current_user)
 ):
-    """Create a Stripe checkout session for subscription"""
+    """Create a Stripe checkout session with 24-hour trial"""
     if not stripe.api_key:
         raise HTTPException(status_code=500, detail="Stripe not configured")
     
-    if request.tier not in TIER_PRICES:
+    if request.tier not in TIER_PRICES or request.tier == "enterprise":
         raise HTTPException(status_code=400, detail="Invalid subscription tier")
     
     try:
-        # Create or get Stripe customer
         db = get_db()
         user_doc = await db.users.find_one({"id": user.id})
         
+        # Create or get Stripe customer
         if user_doc.get("stripe_customer_id"):
             customer_id = user_doc["stripe_customer_id"]
         else:
@@ -67,15 +61,18 @@ async def create_checkout_session(
                 {"$set": {"stripe_customer_id": customer_id}}
             )
         
+        # Check if user already had a trial
+        had_trial = user_doc.get("had_trial", False)
+        
         # Create checkout session
-        session = stripe.checkout.Session.create(
-            customer=customer_id,
-            payment_method_types=["card"],
-            line_items=[{
+        session_params = {
+            "customer": customer_id,
+            "payment_method_types": ["card"],
+            "line_items": [{
                 "price_data": {
                     "currency": "usd",
                     "product_data": {
-                        "name": f"ProductScout AI - {request.tier.title()} Plan",
+                        "name": f"DropSniper AI - {request.tier.title()} Plan",
                         "description": f"Monthly subscription to {request.tier.title()} tier"
                     },
                     "unit_amount": TIER_PRICES[request.tier],
@@ -83,14 +80,22 @@ async def create_checkout_session(
                 },
                 "quantity": 1
             }],
-            mode="subscription",
-            success_url=request.success_url,
-            cancel_url=request.cancel_url,
-            metadata={
+            "mode": "subscription",
+            "success_url": request.success_url,
+            "cancel_url": request.cancel_url,
+            "metadata": {
                 "user_id": user.id,
                 "tier": request.tier
             }
-        )
+        }
+        
+        # Add 24-hour trial if user hasn't had one
+        if not had_trial:
+            session_params["subscription_data"] = {
+                "trial_period_days": 1  # 24 hours
+            }
+        
+        session = stripe.checkout.Session.create(**session_params)
         
         return {"checkout_url": session.url, "session_id": session.id}
         
