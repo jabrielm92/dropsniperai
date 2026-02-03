@@ -3,11 +3,12 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { 
-  Zap, Check, ArrowLeft, X, Sparkles, Clock
+  Zap, Check, X, Clock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { createCheckoutSession } from '../lib/api';
 import { toast } from 'sonner';
+import { PublicHeader, PublicFooter } from '../components/PublicLayout';
 
 export default function Pricing() {
   const { user } = useAuth();
