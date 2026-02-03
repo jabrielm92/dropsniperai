@@ -111,7 +111,7 @@ async def generate_launch_kit(product_id: str, user: User = Depends(get_current_
         product_description=product_obj.description or f"High-quality {product_obj.name} - trending now!",
         ad_copies=[
             AdCopy(style="short", headline=f"🔥 {product_obj.name} - Limited Stock!", body=f"Get yours before it's gone. {int(product_obj.margin_percent)}% OFF today only!", cta="Shop Now"),
-            AdCopy(style="long", headline=f"Why Everyone's Talking About {product_obj.name}", body=f"Join thousands of happy customers. Premium quality at an unbeatable price. Free shipping on orders over $50. 30-day money back guarantee.", cta="Get Yours Today"),
+            AdCopy(style="long", headline=f"Why Everyone's Talking About {product_obj.name}", body="Join thousands of happy customers. Premium quality at an unbeatable price. Free shipping on orders over $50. 30-day money back guarantee.", cta="Get Yours Today"),
             AdCopy(style="urgency", headline=f"⚡ FLASH SALE: {product_obj.name}", body=f"Only {50} left at this price! Don't miss out on the deal everyone's talking about.", cta="Claim Your Discount"),
         ],
         video_scripts=[
