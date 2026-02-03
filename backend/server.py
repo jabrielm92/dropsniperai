@@ -63,6 +63,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+# Admin email
+ADMIN_EMAIL = "jabriel@arisolutionsinc.com"
+
 # Auth Routes
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(data: UserCreate):
@@ -70,10 +73,14 @@ async def register(data: UserCreate):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
+    # Check if this is the admin
+    is_admin = data.email.lower() == ADMIN_EMAIL.lower()
+    
     user = User(
         email=data.email,
         name=data.name,
-        password_hash=hash_password(data.password)
+        password_hash=hash_password(data.password),
+        is_admin=is_admin
     )
     doc = user.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
@@ -82,7 +89,13 @@ async def register(data: UserCreate):
     token = create_token(user.id)
     return TokenResponse(
         access_token=token,
-        user=UserResponse(id=user.id, email=user.email, name=user.name, subscription_tier=user.subscription_tier)
+        user=UserResponse(
+            id=user.id, 
+            email=user.email, 
+            name=user.name, 
+            subscription_tier=user.subscription_tier,
+            is_admin=user.is_admin
+        )
     )
 
 @api_router.post("/auth/login", response_model=TokenResponse)
@@ -98,13 +111,26 @@ async def login(data: UserLogin):
             id=user_doc['id'],
             email=user_doc['email'],
             name=user_doc['name'],
-            subscription_tier=user_doc.get('subscription_tier', 'free')
+            subscription_tier=user_doc.get('subscription_tier', 'free'),
+            is_admin=user_doc.get('is_admin', False),
+            has_openai_key=bool(user_doc.get('openai_api_key')),
+            has_telegram_token=bool(user_doc.get('telegram_bot_token')),
+            telegram_chat_id=user_doc.get('telegram_chat_id')
         )
     )
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(user: User = Depends(get_current_user)):
-    return UserResponse(id=user.id, email=user.email, name=user.name, subscription_tier=user.subscription_tier, telegram_chat_id=user.telegram_chat_id)
+    return UserResponse(
+        id=user.id, 
+        email=user.email, 
+        name=user.name, 
+        subscription_tier=user.subscription_tier, 
+        is_admin=user.is_admin,
+        telegram_chat_id=user.telegram_chat_id,
+        has_openai_key=bool(user.openai_api_key),
+        has_telegram_token=bool(user.telegram_bot_token)
+    )
 
 # Products Routes
 @api_router.get("/products", response_model=List[Product])
