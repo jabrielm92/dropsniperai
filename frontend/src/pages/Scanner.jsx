@@ -18,7 +18,6 @@ export default function Scanner() {
   const [scanningSource, setScanningSource] = useState(null);
   const [results, setResults] = useState(null);
   const [sourceResults, setSourceResults] = useState({});
-  const [useAiBrowser, setUseAiBrowser] = useState(false);
   const [aiStatus, setAiStatus] = useState(null);
 
   useEffect(() => {
