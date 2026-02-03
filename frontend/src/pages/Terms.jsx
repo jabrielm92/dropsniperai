@@ -1,27 +1,11 @@
-import { Link } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Zap, ArrowLeft } from 'lucide-react';
+import { PublicHeader, PublicFooter } from '../components/PublicLayout';
 
 export default function Terms() {
   return (
-    <div className="min-h-screen bg-[#0A0A0A]">
-      <header className="border-b border-white/5">
-        <div className="flex items-center justify-between px-6 md:px-12 py-6">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Zap className="w-6 h-6 text-primary" />
-            </div>
-            <span className="font-bold text-xl">DropSniper AI</span>
-          </Link>
-          <Link to="/">
-            <Button variant="ghost" className="text-muted-foreground hover:text-white">
-              <ArrowLeft className="w-4 h-4 mr-2" />Back
-            </Button>
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+      <PublicHeader />
 
-      <main className="px-6 md:px-12 py-16 max-w-4xl mx-auto">
+      <main className="flex-1 px-6 md:px-12 py-16 max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold mb-8">Terms of Service</h1>
         <p className="text-muted-foreground mb-8">Last updated: February 2026</p>
 
@@ -97,6 +81,8 @@ export default function Terms() {
           </section>
         </div>
       </main>
+
+      <PublicFooter />
     </div>
   );
 }
