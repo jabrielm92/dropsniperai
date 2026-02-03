@@ -137,7 +137,7 @@ export default function Pricing() {
             Find Winners. <span className="text-primary">Pay Less.</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Start with a 24-hour free trial. No credit card required. Cancel anytime.
+            Start with a 24-hour free trial. Cancel anytime.
           </p>
         </div>
 
