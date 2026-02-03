@@ -40,8 +40,6 @@ export default function ProductDetail() {
   useEffect(() => {
     fetchProduct();
   }, [fetchProduct]);
-    }
-  };
 
   const handleGenerateLaunchKit = async () => {
     setGenerating(true);
