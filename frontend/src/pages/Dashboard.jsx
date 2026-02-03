@@ -33,11 +33,13 @@ export default function Dashboard() {
         getDailyReport(),
         getTodayProducts(),
         getStats(),
-        getUserKeys()
+        getUserKeys(),
+        getScanStatus()
       ]);
       setReport(reportRes.data);
       setProducts(productsRes.data.products || productsRes.data);
       setStats(statsRes.data);
+      setScanStatus(scanStatusRes.data);
       
       // Show wizard if user hasn't configured any keys and hasn't dismissed it (per-user)
       const wizardKey = `setupWizardDismissed_${user?.id}`;
