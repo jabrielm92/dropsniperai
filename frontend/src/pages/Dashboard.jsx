@@ -4,13 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import SetupWizard from '../components/SetupWizard';
 import { 
   Zap, LogOut, Settings, TrendingUp, TrendingDown, Minus,
   Target, AlertTriangle, Rocket, BarChart3, 
   Package, Filter, Clock, ChevronRight, RefreshCw, Search, Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDailyReport, getTopProducts, getStats, seedData } from '../lib/api';
+import { getDailyReport, getTopProducts, getStats, seedData, getUserKeys } from '../lib/api';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -20,19 +21,27 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       await seedData();
-      const [reportRes, productsRes, statsRes] = await Promise.all([
+      const [reportRes, productsRes, statsRes, keysRes] = await Promise.all([
         getDailyReport(),
         getTopProducts(8),
-        getStats()
+        getStats(),
+        getUserKeys()
       ]);
       setReport(reportRes.data);
       setProducts(productsRes.data);
       setStats(statsRes.data);
+      
+      // Show wizard if user hasn't configured any keys and hasn't dismissed it
+      const wizardDismissed = localStorage.getItem('setupWizardDismissed');
+      if (!wizardDismissed && !keysRes.data.has_openai_key && !keysRes.data.has_telegram_token) {
+        setShowWizard(true);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load dashboard data');
@@ -89,8 +98,24 @@ export default function Dashboard() {
     );
   }
 
+  const handleWizardComplete = () => {
+    setShowWizard(false);
+    localStorage.setItem('setupWizardDismissed', 'true');
+    fetchData(); // Refresh to get updated key status
+  };
+
+  const handleWizardSkip = () => {
+    setShowWizard(false);
+    localStorage.setItem('setupWizardDismissed', 'true');
+  };
+
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
+      {/* Setup Wizard */}
+      {showWizard && (
+        <SetupWizard onComplete={handleWizardComplete} onSkip={handleWizardSkip} />
+      )}
+      
       {/* Header */}
       <header className="border-b border-white/5 bg-[#0A0A0A]/80 backdrop-blur sticky top-0 z-50">
         <div className="flex items-center justify-between px-6 py-4">
