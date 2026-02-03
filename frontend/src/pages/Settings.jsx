@@ -335,7 +335,7 @@ export default function Settings() {
                   <div className="space-y-2">
                     <Label>Telegram Chat ID</Label>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Message <a href="https://t.me/userinfobot" target="_blank" rel="noopener" className="text-blue-500 hover:underline">@userinfobot</a> to get your ID
+                      Message <a href="https://t.me/userinfobot" target="_blank" rel="noopener" className="text-blue-500 hover:underline">@userinfobot</a> to get YOUR personal ID (not the bot's ID)
                     </p>
                     <Input
                       placeholder="123456789"
@@ -343,6 +343,7 @@ export default function Settings() {
                       onChange={(e) => setUserKeys({ ...userKeys, telegram_chat_id: e.target.value })}
                       className="bg-[#0A0A0A] border-white/10"
                     />
+                    <p className="text-xs text-yellow-500">⚠️ After saving, you must START a conversation with your bot first (send /start to it)</p>
                   </div>
 
                   <Button 
