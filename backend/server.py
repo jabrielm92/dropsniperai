@@ -607,16 +607,21 @@ async def run_full_scan(user: User = Depends(get_current_user)):
 
 @api_router.post("/scan/ai-browser/full")
 async def run_ai_browser_scan(user: User = Depends(get_current_user)):
-    """Run a full AI browser scan (real browsing with browser-use)"""
-    status = ai_browser_agent.get_status()
-    if not status["is_ready"]:
+    """Run a full AI browser scan using user's OpenAI key"""
+    if not user.openai_api_key:
         # Fall back to mock scanner
         results = await scout_engine.run_full_scan()
         results["fallback"] = True
-        results["ai_status"] = status
+        results["message"] = "Add your OpenAI API key in Settings to enable AI browsing"
         return results
     
-    results = await ai_browser_agent.run_full_scan()
+    # Create agent with user's key
+    from services.ai_browser_agent import AIBrowserAgent
+    user_agent = AIBrowserAgent()
+    user_agent.openai_key = user.openai_api_key
+    user_agent.is_configured = True
+    
+    results = await user_agent.run_full_scan()
     
     # Store scan results
     scan_record = {
@@ -631,19 +636,24 @@ async def run_ai_browser_scan(user: User = Depends(get_current_user)):
 
 @api_router.post("/scan/ai-browser/{source}")
 async def run_ai_browser_source_scan(source: str, user: User = Depends(get_current_user)):
-    """Run AI browser scan for a specific source"""
-    status = ai_browser_agent.get_status()
-    if not status["is_ready"]:
-        return {"error": "AI Browser Agent not configured", "status": status}
+    """Run AI browser scan for a specific source using user's key"""
+    if not user.openai_api_key:
+        return {"error": "Add your OpenAI API key in Settings to enable AI browsing", "configured": False}
+    
+    # Create agent with user's key
+    from services.ai_browser_agent import AIBrowserAgent
+    user_agent = AIBrowserAgent()
+    user_agent.openai_key = user.openai_api_key
+    user_agent.is_configured = True
     
     if source == "tiktok":
-        result = await ai_browser_agent.scan_tiktok_trending()
+        result = await user_agent.scan_tiktok_trending()
     elif source == "amazon":
-        result = await ai_browser_agent.scan_amazon_movers()
+        result = await user_agent.scan_amazon_movers()
     elif source == "aliexpress":
-        result = await ai_browser_agent.scan_aliexpress_trending()
+        result = await user_agent.scan_aliexpress_trending()
     elif source == "google_trends":
-        result = await ai_browser_agent.scan_google_trends()
+        result = await user_agent.scan_google_trends()
     else:
         raise HTTPException(status_code=400, detail=f"Unknown source: {source}")
     
@@ -651,28 +661,40 @@ async def run_ai_browser_source_scan(source: str, user: User = Depends(get_curre
 
 @api_router.post("/scan/ai-browser/competitor")
 async def scan_competitor_with_ai(store_url: str, user: User = Depends(get_current_user)):
-    """Scan a competitor store using AI browser"""
-    status = ai_browser_agent.get_status()
-    if not status["is_ready"]:
-        return {"error": "AI Browser Agent not configured", "status": status}
+    """Scan a competitor store using user's AI browser"""
+    if not user.openai_api_key:
+        return {"error": "Add your OpenAI API key in Settings", "configured": False}
     
-    result = await ai_browser_agent.scan_competitor_store(store_url)
+    from services.ai_browser_agent import AIBrowserAgent
+    user_agent = AIBrowserAgent()
+    user_agent.openai_key = user.openai_api_key
+    user_agent.is_configured = True
+    
+    result = await user_agent.scan_competitor_store(store_url)
     return result
 
 @api_router.post("/scan/ai-browser/meta-ads")
 async def scan_meta_ads_with_ai(product_name: str, user: User = Depends(get_current_user)):
-    """Scan Meta Ad Library for a product using AI browser"""
-    status = ai_browser_agent.get_status()
-    if not status["is_ready"]:
-        return {"error": "AI Browser Agent not configured", "status": status}
+    """Scan Meta Ad Library using user's AI browser"""
+    if not user.openai_api_key:
+        return {"error": "Add your OpenAI API key in Settings", "configured": False}
     
-    result = await ai_browser_agent.scan_meta_ad_library(product_name)
+    from services.ai_browser_agent import AIBrowserAgent
+    user_agent = AIBrowserAgent()
+    user_agent.openai_key = user.openai_api_key
+    user_agent.is_configured = True
+    
+    result = await user_agent.scan_meta_ad_library(product_name)
     return result
 
 @api_router.get("/scan/ai-browser/status")
 async def get_ai_browser_status(user: User = Depends(get_current_user)):
-    """Get the status of the AI browser agent"""
-    return ai_browser_agent.get_status()
+    """Get the status of AI browser for this user"""
+    return {
+        "is_ready": bool(user.openai_api_key),
+        "openai_configured": bool(user.openai_api_key),
+        "message": "Ready to browse" if user.openai_api_key else "Add your OpenAI API key in Settings to enable AI browsing"
+    }
 
 @api_router.get("/scan/sources/{source}")
 async def scan_single_source(source: str, user: User = Depends(get_current_user)):
