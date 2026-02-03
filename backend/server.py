@@ -270,8 +270,20 @@ scout_engine = ProductScoutEngine()
 
 @api_router.post("/scan/full")
 async def run_full_scan(user: User = Depends(get_current_user)):
-    """Run a full scan across all data sources"""
-    results = await scout_engine.run_full_scan()
+    """Run a full scan - uses AI if user has OpenAI key, otherwise mock data"""
+    from services.ai_browser_agent import create_agent_for_user, BROWSER_USE_AVAILABLE
+    
+    # Try AI-powered scan if user has OpenAI key configured
+    if user.openai_api_key and BROWSER_USE_AVAILABLE:
+        agent = create_agent_for_user(user.openai_api_key)
+        results = await agent.run_full_scan()
+        results["scan_mode"] = "ai_powered"
+    else:
+        # Fallback to mock/sample data
+        results = await scout_engine.run_full_scan()
+        results["scan_mode"] = "sample_data"
+        if not user.openai_api_key:
+            results["message"] = "Add your OpenAI API key in Settings to enable AI-powered scanning"
     
     scan_record = {
         "user_id": user.id,
@@ -285,7 +297,25 @@ async def run_full_scan(user: User = Depends(get_current_user)):
 
 @api_router.get("/scan/sources/{source}")
 async def scan_single_source(source: str, user: User = Depends(get_current_user)):
-    """Scan a single data source"""
+    """Scan a single data source - uses AI if configured"""
+    from services.ai_browser_agent import create_agent_for_user, BROWSER_USE_AVAILABLE
+    
+    # AI-powered scan if user has key
+    if user.openai_api_key and BROWSER_USE_AVAILABLE:
+        agent = create_agent_for_user(user.openai_api_key)
+        if source == "tiktok":
+            result = await agent.scan_tiktok_trending()
+        elif source == "amazon":
+            result = await agent.scan_amazon_movers()
+        elif source == "aliexpress":
+            result = await agent.scan_aliexpress_trending()
+        elif source == "google_trends":
+            result = await agent.scan_google_trends()
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown source: {source}")
+        return {"source": source, "result": result, "scan_mode": "ai_powered"}
+    
+    # Fallback to mock data
     if source == "tiktok":
         products = await scout_engine.tiktok.scan_trending()
     elif source == "amazon":
@@ -297,13 +327,38 @@ async def scan_single_source(source: str, user: User = Depends(get_current_user)
     else:
         raise HTTPException(status_code=400, detail=f"Unknown source: {source}")
     
-    return {"source": source, "products": products, "count": len(products)}
+    return {"source": source, "products": products, "count": len(products), "scan_mode": "sample_data"}
 
 @api_router.post("/scan/analyze/{product_name}")
 async def analyze_product(product_name: str, user: User = Depends(get_current_user)):
-    """Deep analysis of a specific product"""
+    """Deep analysis of a specific product - uses Meta Ad Library AI scan if configured"""
+    from services.ai_browser_agent import create_agent_for_user, BROWSER_USE_AVAILABLE
+    
+    if user.openai_api_key and BROWSER_USE_AVAILABLE:
+        agent = create_agent_for_user(user.openai_api_key)
+        result = await agent.scan_meta_ad_library(product_name)
+        return {"product_name": product_name, "analysis": result, "scan_mode": "ai_powered"}
+    
+    # Fallback to mock analysis
     analysis = await scout_engine.analyze_product(product_name)
+    analysis["scan_mode"] = "sample_data"
     return analysis
+
+@api_router.get("/scan/status")
+async def get_scan_status(user: User = Depends(get_current_user)):
+    """Get AI scanning capability status for current user"""
+    from services.ai_browser_agent import BROWSER_USE_AVAILABLE
+    
+    has_key = bool(user.openai_api_key)
+    is_ready = has_key and BROWSER_USE_AVAILABLE
+    
+    return {
+        "ai_scanning_available": is_ready,
+        "openai_key_configured": has_key,
+        "browser_use_installed": BROWSER_USE_AVAILABLE,
+        "current_mode": "ai_powered" if is_ready else "sample_data",
+        "message": "AI scanning ready" if is_ready else "Add OpenAI API key in Settings to enable AI-powered scanning"
+    }
 
 # ========== COMPETITOR SPY ==========
 @api_router.post("/competitors")
