@@ -100,7 +100,28 @@ export const getAdminStats = () => api.get('/admin/stats');
 export const getAdminUsers = (skip = 0, limit = 50) => api.get('/admin/users', { params: { skip, limit } });
 export const getAdminUserDetail = (userId) => api.get(`/admin/users/${userId}`);
 export const updateUserTier = (userId, tier) => api.put(`/admin/users/${userId}/tier`, null, { params: { tier } });
-export const getRecentActivity = (limit = 20) => api.get('/admin/recent-activity', { params: { limit } });
+export const getRecentActivity = (limit = 20) => api.get('/admin/activity', { params: { limit } });
+
+// Google Trends
+export const getRisingTrends = (geo = 'US') => api.get('/trends/rising', { params: { geo } });
+export const getKeywordInterest = (keyword, timeframe = 'today 3-m', geo = 'US') => 
+  api.get(`/trends/interest/${keyword}`, { params: { timeframe, geo } });
+export const getRelatedQueries = (keyword, geo = 'US') => 
+  api.get(`/trends/related/${keyword}`, { params: { geo } });
+export const analyzeProductsTrends = (productNames, geo = 'US') => 
+  api.post('/trends/analyze-products', { product_names: productNames, geo });
+
+// Export to E-commerce
+export const exportToShopify = (config) => api.post('/export/shopify', config);
+export const exportToWooCommerce = (config) => api.post('/export/woocommerce', config);
+export const getExportHistory = () => api.get('/export/history');
+export const downloadExport = (format, config) => api.post(`/export/download/${format}`, config);
+
+// Payments
+export const createCheckoutSession = (tier, successUrl, cancelUrl) => 
+  api.post('/payments/create-checkout', { tier, success_url: successUrl, cancel_url: cancelUrl });
+export const getSubscriptionStatus = () => api.get('/payments/subscription');
+export const createPortalSession = () => api.post('/payments/portal');
 
 // Health
 export const healthCheck = () => api.get('/health');
