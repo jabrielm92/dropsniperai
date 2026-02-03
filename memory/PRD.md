@@ -93,6 +93,12 @@ ProductScout AI is a full-stack AI-powered dropshipping product research SaaS pl
   - [x] Integration status per user (OpenAI, Telegram configured)
 - [x] Admin link in Dashboard header (conditional for admins)
 - [x] Graceful fallback to mock data when user keys not configured
+- [x] **Quick Setup Wizard** for new users:
+  - [x] 4-step guided onboarding flow
+  - [x] OpenAI API key setup with instructions
+  - [x] Telegram bot setup with step-by-step guide
+  - [x] Auto-triggers on first login when no keys configured
+  - [x] "Skip for now" option with localStorage persistence
 
 ## Prioritized Backlog
 
