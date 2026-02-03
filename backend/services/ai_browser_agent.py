@@ -279,9 +279,10 @@ class AIBrowserAgent:
             "browser_use_available": BROWSER_USE_AVAILABLE,
             "openai_key_configured": bool(self.openai_key),
             "is_ready": self.is_configured,
-            "message": "Ready to browse" if self.is_configured else "Add OPENAI_API_KEY to enable AI browsing"
+            "message": "Ready to browse" if self.is_configured else "Add your OpenAI API key in Settings to enable AI browsing"
         }
 
 
-# Singleton instance
-ai_browser_agent = AIBrowserAgent()
+def create_agent_for_user(openai_key: str = None) -> AIBrowserAgent:
+    """Factory function to create an agent with user's API key"""
+    return AIBrowserAgent(user_openai_key=openai_key)
