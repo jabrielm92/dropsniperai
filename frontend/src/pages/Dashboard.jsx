@@ -156,7 +156,27 @@ export default function Dashboard() {
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
+          {/* Main CTA - Run Scanner */}
+          <Button 
+            onClick={handleRunScan}
+            disabled={scanning}
+            className="bg-primary text-black font-bold hover:bg-primary/90 px-6"
+            data-testid="run-scan-btn"
+          >
+            {scanning ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Scanning...
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 mr-2" />
+                Run Scanner
+              </>
+            )}
+          </Button>
+          
+          <div className="flex items-center gap-2">
             <Button 
               variant="ghost" 
               size="icon" 
