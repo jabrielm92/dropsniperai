@@ -131,7 +131,8 @@ async def stripe_webhook(request: Request):
                 "$set": {
                     "subscription_tier": tier,
                     "stripe_subscription_id": session.get("subscription"),
-                    "subscription_updated_at": datetime.now(timezone.utc).isoformat()
+                    "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
+                    "had_trial": True  # Mark that user used their trial
                 }
             }
         )
