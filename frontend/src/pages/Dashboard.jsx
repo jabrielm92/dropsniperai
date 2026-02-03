@@ -72,6 +72,27 @@ export default function Dashboard() {
     toast.success('Data refreshed!');
   };
 
+  const handleRunScan = async () => {
+    if (!scanStatus?.ai_scanning_available) {
+      toast.error('Add your OpenAI API key in Settings first');
+      navigate('/settings');
+      return;
+    }
+    
+    setScanning(true);
+    try {
+      const response = await runFullScan();
+      toast.success(`Scan complete! Found ${response.data.total_products} products`);
+      // Refresh products after scan
+      const productsRes = await getTodayProducts();
+      setProducts(productsRes.data.products || productsRes.data);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Scan failed');
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const getTrendIcon = (direction) => {
     if (direction === 'up') return <TrendingUp className="w-4 h-4 text-primary" />;
     if (direction === 'down') return <TrendingDown className="w-4 h-4 text-destructive" />;
