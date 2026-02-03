@@ -20,6 +20,10 @@ class User(BaseModel):
     name: str
     password_hash: str
     subscription_tier: str = "free"
+    is_admin: bool = False
+    # User's own API keys (per-tenant)
+    openai_api_key: Optional[str] = None
+    telegram_bot_token: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     filters: Optional[Dict[str, Any]] = None
@@ -29,7 +33,10 @@ class UserResponse(BaseModel):
     email: str
     name: str
     subscription_tier: str
+    is_admin: bool = False
     telegram_chat_id: Optional[str] = None
+    has_openai_key: bool = False
+    has_telegram_token: bool = False
 
 class TokenResponse(BaseModel):
     access_token: str
