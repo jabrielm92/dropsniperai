@@ -56,6 +56,7 @@ async def get_keyword_interest(
     user: User = Depends(get_current_user)
 ):
     """Get interest over time for a specific keyword"""
+    check_feature_access(user.subscription_tier, "google_trends")
     try:
         pytrends = get_pytrends()
         
