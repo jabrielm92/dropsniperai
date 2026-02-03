@@ -920,42 +920,97 @@ async def get_niche_saturation(user: User = Depends(get_current_user)):
     
     return niche_data
 
-# ========== TELEGRAM BOT ROUTES ==========
+# ========== USER API KEYS MANAGEMENT ==========
+
+class UserKeysUpdate(BaseModel):
+    openai_api_key: Optional[str] = None
+    telegram_bot_token: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
+
+@api_router.get("/user/keys")
+async def get_user_keys(user: User = Depends(get_current_user)):
+    """Get user's API key configuration status (not the actual keys)"""
+    return {
+        "has_openai_key": bool(user.openai_api_key),
+        "has_telegram_token": bool(user.telegram_bot_token),
+        "telegram_chat_id": user.telegram_chat_id,
+        # Return masked keys for display
+        "openai_key_masked": f"sk-...{user.openai_api_key[-4:]}" if user.openai_api_key else None,
+        "telegram_token_masked": f"...{user.telegram_bot_token[-6:]}" if user.telegram_bot_token else None
+    }
+
+@api_router.put("/user/keys")
+async def update_user_keys(keys: UserKeysUpdate, user: User = Depends(get_current_user)):
+    """Update user's API keys"""
+    update_data = {}
+    
+    if keys.openai_api_key is not None:
+        update_data["openai_api_key"] = keys.openai_api_key if keys.openai_api_key else None
+    if keys.telegram_bot_token is not None:
+        update_data["telegram_bot_token"] = keys.telegram_bot_token if keys.telegram_bot_token else None
+    if keys.telegram_chat_id is not None:
+        update_data["telegram_chat_id"] = keys.telegram_chat_id if keys.telegram_chat_id else None
+    
+    if update_data:
+        await db.users.update_one({"id": user.id}, {"$set": update_data})
+    
+    return {"success": True, "updated_fields": list(update_data.keys())}
+
+@api_router.delete("/user/keys/{key_type}")
+async def delete_user_key(key_type: str, user: User = Depends(get_current_user)):
+    """Delete a specific API key"""
+    valid_keys = ["openai_api_key", "telegram_bot_token", "telegram_chat_id"]
+    if key_type not in valid_keys:
+        raise HTTPException(status_code=400, detail=f"Invalid key type. Must be one of: {valid_keys}")
+    
+    await db.users.update_one({"id": user.id}, {"$set": {key_type: None}})
+    return {"success": True, "deleted": key_type}
+
+# ========== TELEGRAM BOT ROUTES (User's own bot) ==========
 
 @api_router.get("/telegram/status")
 async def get_telegram_status(user: User = Depends(get_current_user)):
-    """Get Telegram bot configuration status"""
-    return telegram_bot.get_status()
+    """Get user's Telegram configuration status"""
+    return {
+        "has_bot_token": bool(user.telegram_bot_token),
+        "has_chat_id": bool(user.telegram_chat_id),
+        "is_ready": bool(user.telegram_bot_token and user.telegram_chat_id)
+    }
 
-@api_router.post("/telegram/connect")
-async def connect_telegram(chat_id: str, user: User = Depends(get_current_user)):
-    """Connect user's Telegram chat ID"""
-    await db.users.update_one(
-        {"id": user.id},
-        {"$set": {"telegram_chat_id": chat_id}}
+@api_router.post("/telegram/test")
+async def test_telegram(user: User = Depends(get_current_user)):
+    """Send a test message using user's own Telegram bot"""
+    if not user.telegram_bot_token:
+        raise HTTPException(status_code=400, detail="Add your Telegram Bot Token first")
+    if not user.telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Add your Telegram Chat ID first")
+    
+    # Create a bot instance with user's token
+    from services.telegram_bot import TelegramBot
+    user_bot = TelegramBot()
+    user_bot.bot_token = user.telegram_bot_token
+    user_bot.is_configured = True
+    user_bot.base_url = f"https://api.telegram.org/bot{user.telegram_bot_token}"
+    
+    result = await user_bot.send_message(
+        user.telegram_chat_id,
+        "🎉 <b>ProductScout AI Connected!</b>\n\nYour bot is working! You'll receive daily reports and alerts here."
     )
     
-    # Send a test message
-    if telegram_bot.is_configured:
-        result = await telegram_bot.send_message(
-            chat_id,
-            "🎉 <b>ProductScout AI Connected!</b>\n\nYou'll now receive daily reports and alerts here."
-        )
-        return {"success": True, "message_sent": result.get("success", False)}
-    
-    return {"success": True, "message_sent": False, "note": "Bot token not configured yet"}
+    return {"success": result.get("success", False), "result": result}
 
 @api_router.post("/telegram/send-report")
 async def send_telegram_report(user: User = Depends(get_current_user)):
-    """Manually trigger sending daily report to Telegram"""
-    user_doc = await db.users.find_one({"id": user.id}, {"_id": 0})
-    chat_id = user_doc.get("telegram_chat_id")
+    """Send daily report using user's own Telegram bot"""
+    if not user.telegram_bot_token or not user.telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Configure your Telegram bot token and chat ID first")
     
-    if not chat_id:
-        raise HTTPException(status_code=400, detail="Telegram not connected. Add your chat ID first.")
-    
-    if not telegram_bot.is_configured:
-        raise HTTPException(status_code=400, detail="Telegram bot not configured. Add TELEGRAM_BOT_TOKEN.")
+    # Create bot with user's token
+    from services.telegram_bot import TelegramBot
+    user_bot = TelegramBot()
+    user_bot.bot_token = user.telegram_bot_token
+    user_bot.is_configured = True
+    user_bot.base_url = f"https://api.telegram.org/bot{user.telegram_bot_token}"
     
     # Get daily report data
     products = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).limit(5).to_list(5)
