@@ -60,7 +60,9 @@ export default function Scanner() {
         ...prev,
         [source]: response.data
       }));
-      toast.success(`Found ${response.data.count} products from ${source}`);
+      const mode = response.data.scan_mode;
+      const count = response.data.count || response.data.result?.products?.length || 0;
+      toast.success(`${mode === 'ai_powered' ? 'AI scan' : 'Sample data'}: ${count} products from ${source}`);
     } catch (error) {
       toast.error(`Failed to scan ${source}`);
     } finally {
