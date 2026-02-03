@@ -60,6 +60,7 @@ export const seedData = () => api.post('/seed');
 export const runFullScan = () => api.post('/scan/full');
 export const scanSource = (source) => api.get(`/scan/sources/${source}`);
 export const analyzeProduct = (productName) => api.post(`/scan/analyze/${productName}`);
+export const getScanStatus = () => api.get('/scan/status');
 
 // Competitors
 export const addCompetitor = (storeUrl) => api.post('/competitors', null, { params: { store_url: storeUrl } });
