@@ -394,6 +394,11 @@ async def get_scan_status(user: User = Depends(get_current_user)):
     }
 
 # ========== COMPETITOR SPY ==========
+from services.competitor_spy import (
+    CompetitorStore, CompetitorAlert, CompetitorProduct,
+    generate_mock_competitor_data, detect_store_changes
+)
+
 @api_router.post("/competitors")
 async def add_competitor(store_url: str, user: User = Depends(get_current_user)):
     check_feature_access(user.subscription_tier, "competitor_spy")
