@@ -1,12 +1,12 @@
 """Authentication routes"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone, timedelta
 import jwt
 import hashlib
 import os
 
 from models import User, UserCreate, UserLogin, UserResponse, TokenResponse
-from routes.deps import get_db
+from routes.deps import get_db, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
