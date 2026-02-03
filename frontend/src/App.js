@@ -71,6 +71,30 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/competitors"
+        element={
+          <ProtectedRoute>
+            <Competitors />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/saturation"
+        element={
+          <ProtectedRoute>
+            <Saturation />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/scanner"
+        element={
+          <ProtectedRoute>
+            <Scanner />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }
