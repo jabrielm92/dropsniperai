@@ -416,7 +416,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="relative z-10 px-6 md:px-12 py-12 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-primary" />
               <span className="font-bold">DropSniper AI</span>
@@ -425,9 +425,11 @@ export default function Landing() {
               <Link to="/pricing" className="hover:text-white">Pricing</Link>
               <Link to="/terms" className="hover:text-white">Terms</Link>
               <Link to="/privacy" className="hover:text-white">Privacy</Link>
+              <Link to="/contact" className="hover:text-white">Contact</Link>
             </div>
-            <div className="text-sm text-muted-foreground">
-              © 2026 DropSniper AI. All rights reserved.
+            <div className="text-sm text-muted-foreground text-center">
+              <p>© 2026 DropSniper AI. All rights reserved.</p>
+              <p className="text-xs mt-1">by ARI Solutions Inc. ™</p>
             </div>
           </div>
         </div>
