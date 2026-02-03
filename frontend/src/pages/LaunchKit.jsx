@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -19,11 +19,7 @@ export default function LaunchKit() {
   const [loading, setLoading] = useState(true);
   const [checklist, setChecklist] = useState([]);
 
-  useEffect(() => {
-    fetchKit();
-  }, [id]);
-
-  const fetchKit = async () => {
+  const fetchKit = useCallback(async () => {
     try {
       const response = await getLaunchKit(id);
       setKit(response.data);
@@ -34,7 +30,11 @@ export default function LaunchKit() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    fetchKit();
+  }, [fetchKit]);
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
