@@ -270,7 +270,7 @@ export default function Landing() {
           <div className="text-center mb-16">
             <Badge className="bg-white/5 text-white border-white/10 mb-4">Testimonials</Badge>
             <h2 className="text-3xl md:text-4xl font-bold">
-              Loved by <span className="text-primary">2,500+ Sellers</span>
+              Top Sellers <span className="text-primary">Can Vouch</span>
             </h2>
           </div>
           

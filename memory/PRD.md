@@ -1,118 +1,86 @@
-# ProductScout AI - Product Requirements Document
+# DropSniper AI - Product Requirements Document
 
 ## Overview
-ProductScout AI is a full-stack AI-powered dropshipping product research SaaS platform that automates the entire pipeline from trend discovery to launch preparation. 
-
-## Architecture
-- **Frontend**: React + Tailwind + Shadcn UI (Vercel deployment)
-- **Backend**: FastAPI + MongoDB (Railway deployment)
-- **AI Browser**: browser-use + GPT-4 (autonomous browsing)
-- **Notifications**: Telegram Bot API
-- **Database**: MongoDB Atlas
-- **Payments**: Stripe
+DropSniper AI is a full-stack AI-powered dropshipping product research SaaS platform that automates product discovery, validation, competitor monitoring, and launch preparation.
 
 ## Tech Stack
-- React 18 with React Router
-- FastAPI with Pydantic models
-- MongoDB with Motor async driver
-- JWT authentication
-- Stripe for payments
-- pytrends for Google Trends
+- **Frontend**: React 18 + Tailwind CSS + Shadcn UI → Vercel
+- **Backend**: FastAPI + Pydantic → Railway  
+- **Database**: MongoDB Atlas
+- **Payments**: Stripe (24-hour trial)
+- **Notifications**: Telegram Bot API
+- **Trends**: Google Trends (pytrends)
 
-## What's Been Implemented
+## Pricing Tiers
 
-### Phase 1 - MVP Core ✅
-- [x] User authentication (JWT-based)
+| Tier | Price | Status | Features |
+|------|-------|--------|----------|
+| **Sniper** | $29/mo | Active | 10 products/day, email, basic filters |
+| **Elite** | $79/mo | Active | Unlimited, Telegram, competitor spy, exports |
+| **Agency** | $149/mo | Coming Soon | Team seats, white-label, API |
+| **Enterprise** | Custom | Coming Soon | Custom integrations |
+
+## Implemented Features ✅
+
+### Core
+- [x] JWT Authentication
 - [x] Dashboard with daily intelligence report
-- [x] Product cards with scores, trends, margins
-- [x] Product detail page with sourcing, validation, profit breakdown
-- [x] Launch kit generator (ad copy, video scripts, targeting, checklist)
-- [x] Settings page with configurable filters
-- [x] Pricing page with 4 subscription tiers
+- [x] Product discovery with scoring
+- [x] Launch kit generator (ad copy, video scripts)
+- [x] Settings with configurable filters
 
-### Phase 2 - Intelligence Layer ✅
-- [x] Scanner service with multiple data sources
-- [x] Product analysis engine
-- [x] Saturation Radar with niche breakdown
-- [x] Competition scoring system
+### Intelligence
+- [x] Multi-source scanner (TikTok, Amazon, AliExpress)
+- [x] Google Trends integration (pytrends)
+- [x] Saturation radar
+- [x] Competitor spy & alerts
 
-### Phase 3 - Competitor Spy ✅
-- [x] Add competitor stores to monitor
-- [x] Store product tracking
-- [x] New product detection
-- [x] Alert system for changes
+### Integrations
+- [x] Telegram bot notifications
+- [x] Stripe payments (24-hour trial)
+- [x] Shopify CSV export
+- [x] WooCommerce CSV export
 
-### Phase 4 - AI Browser Agent ✅
-- [x] browser-use library integration (prepared)
-- [x] GPT-4 powered autonomous browsing (prepared)
-- [x] Fallback to mock data when not configured
-- [x] Status API to check configuration
+### Admin & Multi-tenant
+- [x] Admin panel (jabriel@arisolutionsinc.com)
+- [x] User tier management
+- [x] Per-user API key storage
+- [x] Tier-based feature gating
 
-### Phase 5 - Telegram Integration ✅
-- [x] Telegram Bot service
-- [x] Daily report message formatting
-- [x] Product alert messages
-- [x] Competitor alert messages
-- [x] Connect chat ID from Settings
-- [x] Send test report button
+### Pages
+- [x] Landing page (features, testimonials, Telegram preview)
+- [x] Pricing page (2 active + 2 coming soon)
+- [x] Terms of Service
+- [x] Privacy Policy
+- [x] Setup Wizard for new users
 
-### Phase 6 - Multi-Tenant & Admin ✅
-- [x] User API Key Management
-- [x] Admin Panel with platform stats
-- [x] User management with tier updates
-- [x] Quick Setup Wizard for new users
-- [x] Re-run Setup Wizard button in Dashboard
+## Deployment Ready
+- [x] Railway configuration (backend)
+- [x] Vercel configuration (frontend)
+- [x] MongoDB Atlas compatible
+- [x] Environment variables documented
+- [x] `/app/DEPLOYMENT_GUIDE.md` - Click-by-click instructions
 
-### Phase 7 - Advanced Features ✅
-- [x] Real Google Trends integration (pytrends)
-  - Rising trends API
-  - Keyword interest over time
-  - Related queries
-  - Product trend analysis
-- [x] One-click Shopify export
-- [x] One-click WooCommerce export
-- [x] Export history tracking
-- [x] Stripe payment integration
-  - Checkout sessions
-  - Webhook handling
-  - Customer portal
-  - Subscription management
+## Environment Variables
 
-### Phase 8 - Backend Refactoring ✅
-- [x] Modular route structure:
-  - `/routes/auth.py` - Authentication
-  - `/routes/products.py` - Product management
-  - `/routes/users.py` - User key management
-  - `/routes/admin.py` - Admin panel
-  - `/routes/trends.py` - Google Trends
-  - `/routes/export.py` - E-commerce export
-  - `/routes/payments.py` - Stripe payments
-  - `/routes/deps.py` - Shared dependencies
+### Railway (Backend)
+- `MONGO_URL` - MongoDB connection string
+- `DB_NAME` - Database name
+- `JWT_SECRET` - Auth secret
+- `STRIPE_SECRET_KEY` - Stripe API key
+- `STRIPE_PUBLISHABLE_KEY` - Stripe public key
+- `STRIPE_WEBHOOK_SECRET` - Webhook verification
+- `FRONTEND_URL` - Vercel app URL
 
-### Phase 9 - Deployment Ready ✅
-- [x] Vercel configuration (vercel.json)
-- [x] Railway configuration (railway.toml, Procfile)
-- [x] MongoDB Atlas ready
-- [x] Environment variable documentation
-- [x] Deployment guides (DEPLOY.md)
-
-## API Keys Configured
-- OpenAI API Key: ✅ Configured
-- Telegram Bot Token: ✅ Configured  
-- Stripe Keys: ✅ Configured
-
-## Deployment URLs
-- Frontend: Deploy to Vercel
-- Backend: Deploy to Railway
-- Database: MongoDB Atlas
+### Vercel (Frontend)
+- `REACT_APP_BACKEND_URL` - Railway backend URL
 
 ## Admin Access
-- Email: jabriel@arisolutionsinc.com
-- Auto-granted admin role on registration
+Email: `jabriel@arisolutionsinc.com` → Auto-admin on register
 
-## Remaining Backlog
-- [ ] Background job scheduling (cron for daily scans)
-- [ ] Email notifications (SendGrid/Resend)
-- [ ] Real-time AI browser scanning (browser-use activation)
-- [ ] Advanced analytics dashboard
-- [ ] Team collaboration features
+## Backlog
+- [ ] Background job scheduling (daily scans)
+- [ ] Email notifications
+- [ ] Team seats (Agency tier)
+- [ ] White-label reports
+- [ ] API rate limiting
