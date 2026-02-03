@@ -571,7 +571,12 @@ async def test_telegram(user: User = Depends(get_current_user)):
         "🎉 <b>DropSniper AI Connected!</b>\n\nYour bot is working! You'll receive daily reports and alerts here."
     )
     
-    return {"success": result.get("success", False), "result": result}
+    # Return detailed error if failed
+    if not result.get("success"):
+        detail = result.get("detail", result.get("error", "Failed to send message"))
+        raise HTTPException(status_code=400, detail=detail)
+    
+    return {"success": True, "message": "Test message sent successfully!"}
 
 @api_router.post("/telegram/send-report")
 async def send_telegram_report(user: User = Depends(get_current_user)):
