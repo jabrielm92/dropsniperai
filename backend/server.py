@@ -551,6 +551,278 @@ async def seed_data():
     
     return {"message": "Seeded successfully", "count": len(sample_products)}
 
+# ========== SCANNER ROUTES ==========
+
+from services.scanners import ProductScoutEngine
+from services.competitor_spy import (
+    CompetitorStore, CompetitorAlert, CompetitorProduct,
+    generate_mock_competitor_data, detect_store_changes
+)
+
+scout_engine = ProductScoutEngine()
+
+@api_router.post("/scan/full")
+async def run_full_scan(user: User = Depends(get_current_user)):
+    """Run a full scan across all data sources"""
+    results = await scout_engine.run_full_scan()
+    
+    # Store scan results
+    scan_record = {
+        "user_id": user.id,
+        "scan_type": "full",
+        "results": results,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.scan_history.insert_one(scan_record)
+    
+    return results
+
+@api_router.get("/scan/sources/{source}")
+async def scan_single_source(source: str, user: User = Depends(get_current_user)):
+    """Scan a single data source"""
+    if source == "tiktok":
+        products = await scout_engine.tiktok.scan_trending()
+    elif source == "amazon":
+        products = await scout_engine.amazon.scan_movers_shakers()
+    elif source == "aliexpress":
+        products = await scout_engine.aliexpress.scan_trending()
+    elif source == "google_trends":
+        products = await scout_engine.google_trends.scan_rising_terms()
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown source: {source}")
+    
+    return {"source": source, "products": products, "count": len(products)}
+
+@api_router.post("/scan/analyze/{product_name}")
+async def analyze_product(product_name: str, user: User = Depends(get_current_user)):
+    """Deep analysis of a specific product"""
+    analysis = await scout_engine.analyze_product(product_name)
+    return analysis
+
+# ========== COMPETITOR SPY ROUTES ==========
+
+@api_router.post("/competitors")
+async def add_competitor(store_url: str, user: User = Depends(get_current_user)):
+    """Add a competitor store to monitor"""
+    # Check if already monitoring
+    existing = await db.competitors.find_one({"user_id": user.id, "store_url": store_url})
+    if existing:
+        raise HTTPException(status_code=400, detail="Already monitoring this store")
+    
+    # Get initial store data
+    store_data = generate_mock_competitor_data(store_url)
+    
+    competitor = CompetitorStore(
+        user_id=user.id,
+        store_url=store_url,
+        store_name=store_data["store_name"],
+        products_snapshot=[p["name"] for p in store_data["products"]],
+        last_scanned=datetime.now(timezone.utc)
+    )
+    
+    doc = competitor.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['last_scanned'] = doc['last_scanned'].isoformat()
+    await db.competitors.insert_one(doc)
+    
+    # Store products
+    for product in store_data["products"]:
+        prod = CompetitorProduct(
+            competitor_id=competitor.id,
+            name=product["name"],
+            price=product["price"]
+        )
+        prod_doc = prod.model_dump()
+        prod_doc['first_seen'] = prod_doc['first_seen'].isoformat()
+        prod_doc['last_seen'] = prod_doc['last_seen'].isoformat()
+        await db.competitor_products.insert_one(prod_doc)
+    
+    return {
+        "competitor": competitor.model_dump(),
+        "store_data": store_data
+    }
+
+@api_router.get("/competitors")
+async def get_competitors(user: User = Depends(get_current_user)):
+    """Get all monitored competitors"""
+    competitors = await db.competitors.find({"user_id": user.id, "is_active": True}, {"_id": 0}).to_list(50)
+    return competitors
+
+@api_router.get("/competitors/{competitor_id}")
+async def get_competitor(competitor_id: str, user: User = Depends(get_current_user)):
+    """Get competitor details with products"""
+    competitor = await db.competitors.find_one(
+        {"id": competitor_id, "user_id": user.id}, {"_id": 0}
+    )
+    if not competitor:
+        raise HTTPException(status_code=404, detail="Competitor not found")
+    
+    products = await db.competitor_products.find(
+        {"competitor_id": competitor_id}, {"_id": 0}
+    ).to_list(100)
+    
+    return {
+        "competitor": competitor,
+        "products": products,
+        "total_products": len(products)
+    }
+
+@api_router.post("/competitors/{competitor_id}/scan")
+async def scan_competitor(competitor_id: str, user: User = Depends(get_current_user)):
+    """Rescan a competitor store for updates"""
+    competitor = await db.competitors.find_one(
+        {"id": competitor_id, "user_id": user.id}, {"_id": 0}
+    )
+    if not competitor:
+        raise HTTPException(status_code=404, detail="Competitor not found")
+    
+    # Get new store data
+    store_data = generate_mock_competitor_data(competitor["store_url"])
+    old_products = competitor.get("products_snapshot", [])
+    
+    # Detect changes
+    changes = detect_store_changes(old_products, store_data["products"])
+    
+    # Update competitor record
+    await db.competitors.update_one(
+        {"id": competitor_id},
+        {
+            "$set": {
+                "products_snapshot": [p["name"] for p in store_data["products"]],
+                "last_scanned": datetime.now(timezone.utc).isoformat(),
+                "new_products_count": changes["added_count"]
+            }
+        }
+    )
+    
+    # Create alerts for new products
+    if changes["added_count"] > 0:
+        alert = CompetitorAlert(
+            user_id=user.id,
+            competitor_id=competitor_id,
+            competitor_name=competitor["store_name"],
+            alert_type="new_product",
+            title=f"New products at {competitor['store_name']}",
+            message=f"{changes['added_count']} new product(s) detected",
+            product_data={"new_products": changes["added_products"]}
+        )
+        alert_doc = alert.model_dump()
+        alert_doc['created_at'] = alert_doc['created_at'].isoformat()
+        await db.competitor_alerts.insert_one(alert_doc)
+    
+    # Add new products to database
+    for product in store_data["products"]:
+        if product["name"] in changes["added_products"]:
+            prod = CompetitorProduct(
+                competitor_id=competitor_id,
+                name=product["name"],
+                price=product["price"]
+            )
+            prod_doc = prod.model_dump()
+            prod_doc['first_seen'] = prod_doc['first_seen'].isoformat()
+            prod_doc['last_seen'] = prod_doc['last_seen'].isoformat()
+            await db.competitor_products.insert_one(prod_doc)
+    
+    return {
+        "changes": changes,
+        "store_data": store_data,
+        "scanned_at": datetime.now(timezone.utc).isoformat()
+    }
+
+@api_router.delete("/competitors/{competitor_id}")
+async def remove_competitor(competitor_id: str, user: User = Depends(get_current_user)):
+    """Stop monitoring a competitor"""
+    result = await db.competitors.update_one(
+        {"id": competitor_id, "user_id": user.id},
+        {"$set": {"is_active": False}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Competitor not found")
+    return {"success": True}
+
+@api_router.get("/competitors/alerts/all")
+async def get_all_alerts(user: User = Depends(get_current_user)):
+    """Get all competitor alerts"""
+    alerts = await db.competitor_alerts.find(
+        {"user_id": user.id}, {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return alerts
+
+@api_router.put("/competitors/alerts/{alert_id}/read")
+async def mark_alert_read(alert_id: str, user: User = Depends(get_current_user)):
+    """Mark an alert as read"""
+    result = await db.competitor_alerts.update_one(
+        {"id": alert_id, "user_id": user.id},
+        {"$set": {"is_read": True}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"success": True}
+
+# ========== SATURATION RADAR ==========
+
+@api_router.get("/saturation/overview")
+async def get_saturation_overview(user: User = Depends(get_current_user)):
+    """Get saturation overview for all tracked products"""
+    products = await db.products.find({}, {"_id": 0}).to_list(100)
+    
+    saturation_data = {
+        "low": [],
+        "medium": [],
+        "high": []
+    }
+    
+    for product in products:
+        level = product.get("saturation_level", "medium")
+        saturation_data[level].append({
+            "id": product["id"],
+            "name": product["name"],
+            "fb_ads": product.get("active_fb_ads", 0),
+            "shopify_stores": product.get("shopify_stores", 0),
+            "trend_direction": product.get("trend_direction", "stable")
+        })
+    
+    return {
+        "overview": saturation_data,
+        "stats": {
+            "low_competition": len(saturation_data["low"]),
+            "medium_competition": len(saturation_data["medium"]),
+            "high_competition": len(saturation_data["high"])
+        }
+    }
+
+@api_router.get("/saturation/niches")
+async def get_niche_saturation(user: User = Depends(get_current_user)):
+    """Get saturation levels by niche/category"""
+    products = await db.products.find({}, {"_id": 0}).to_list(100)
+    
+    niche_data = {}
+    for product in products:
+        category = product.get("category", "Other")
+        if category not in niche_data:
+            niche_data[category] = {
+                "total_products": 0,
+                "avg_fb_ads": 0,
+                "avg_stores": 0,
+                "saturation_score": 0
+            }
+        
+        niche_data[category]["total_products"] += 1
+        niche_data[category]["avg_fb_ads"] += product.get("active_fb_ads", 0)
+        niche_data[category]["avg_stores"] += product.get("shopify_stores", 0)
+    
+    # Calculate averages
+    for category in niche_data:
+        count = niche_data[category]["total_products"]
+        if count > 0:
+            niche_data[category]["avg_fb_ads"] = round(niche_data[category]["avg_fb_ads"] / count)
+            niche_data[category]["avg_stores"] = round(niche_data[category]["avg_stores"] / count)
+            # Saturation score (0-100)
+            niche_data[category]["saturation_score"] = min(100, 
+                (niche_data[category]["avg_fb_ads"] + niche_data[category]["avg_stores"]) // 3)
+    
+    return niche_data
+
 # Health check
 @api_router.get("/health")
 async def health():
