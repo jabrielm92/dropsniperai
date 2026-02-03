@@ -1,0 +1,573 @@
+<analysis>**original_problem_statement:**
+The user wants to build a 10x improved version of a product research tool concept from a post on X. The goal is to create a SaaS application, ProductScout AI, that automates the entire dropshipping product pipeline from scouting to launch preparation.
+
+**PRODUCT REQUIREMENTS:**
+-   **AI Agents:** A team of AI agents for scouting, filtering, validating, sourcing, and preparing products for launch.
+-   **Data Sources:** Scan TikTok, Amazon Movers & Shakers, AliExpress, and Google Trends for trending products.
+-   **Core Features:**
+    -   Automated daily product discovery and reporting.
+    -   Advanced filtering based on cost, markup, competition, and trends.
+    -   Demand validation (store counts, ad analysis, trademark checks).
+    -   Automated supplier sourcing and profit calculation.
+    -   Launch Kit generation (ad copy, scripts, targeting).
+    -   Competitor monitoring and saturation tracking.
+-   **Multi-Tenancy:** Each user must be able to connect their own OpenAI/Claude key and Telegram bot credentials. The SaaS owner will manage Stripe for billing.
+-   **Admin Panel:** A dedicated panel for the SaaS owner () to manage the application.
+-   **Tech Stack:** Vercel (Frontend), Railway (Backend), MongoDB (Database).
+
+**User's preferred language**: English
+
+**what currently exists?**
+A full-stack application with a React frontend and FastAPI backend using MongoDB. The application features user authentication (JWT), a dark-themed UI built with Shadcn, and a comprehensive set of pages for the dashboard, product details, launch kits, pricing, competitor analysis, and saturation radar. The core AI agent logic is currently mocked, returning pre-defined data. A multi-tenant architecture has been partially implemented to allow users to save their own API keys, and an admin panel has been created.
+
+**Last working item**:
+-   **Last item agent was working:** Implementing the multi-tenant architecture and an admin panel. This involved:
+    1.  Modifying the backend  model () to store user-specific API keys (OpenAI, Telegram).
+    2.  Adding API endpoints () for users to update their keys and for an admin to view user data.
+    3.  Updating the frontend **Settings** page () with input fields for users to save their keys.
+    4.  Creating a new **Admin** page () accessible only to the designated admin user.
+    5.  Updating the router () to include the new admin route.
+-   **Status:** IN PROGRESS
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** both. The next agent should use the  tool to verify the new UI on the Settings and Admin pages, and  to test the new backend endpoints for saving/retrieving user keys and accessing admin data. Given the architectural significance, using the  is highly recommended after initial manual checks.
+-   **User Testing Done:** N
+
+**All Pending/In progress Issue list**:
+-   **Issue 1:** The frontend dev server showed instability (Maximum call stack size exceeded) related to  and a babel plugin. The agent disabled the plugin as a workaround, but the root cause wasn't fixed. This could cause future development issues.
+-   **Issue 2:** The newly created Admin Panel is not linked from any visible UI element (like a sidebar or user menu). It's only accessible by manually navigating to the  URL.
+-   **Issue 3:** There is no mechanism to assign the 'admin' role to the specified user () upon registration. The backend checks for the role, but it's never set.
+
+**Issues Detail:**
+-   **Issue 1:**
+    -   **Attempted fixes:** The  was disabled in . This stopped the error for now but doesn't solve the underlying conflict.
+    -   **Next debug checklist:**
+        1.  Re-enable the plugin and check for version conflicts between , , and other babel-related dependencies in .
+        2.  Research known issues with  and the specific babel plugin.
+    -   **Why fix this issue and what will be achieved with the fix?** Ensures a stable development environment, preventing wasted time on toolchain-related bugs.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** None
+
+-   **Issue 2:**
+    -   **Attempted fixes:** None.
+    -   **Next debug checklist:**
+        1.  Edit the main navigation component (likely within  or a shared layout component).
+        2.  Add a conditional link to  that only renders if the logged-in user has the 'admin' role.
+    -   **Why fix this issue and what will be achieved with the fix?** To provide the admin user with an accessible entry point to the Admin Panel.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** Depends on Issue 3 (ability to have an admin user).
+
+-   **Issue 3:**
+    -   **Attempted fixes:** None.
+    -   **Next debug checklist:**
+        1.  Modify the user registration logic in .
+        2.  Inside the  endpoint, add a check: if , set the  field to admin before saving the new user to the database.
+    -   **Why fix this issue and what will be achieved with the fix?** This is critical for enabling admin-only features and testing the admin panel.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** backend
+    -   **Blocked on other issue:** None
+
+**In progress Task List**:
+-   **Task 1:** Complete and Test Multi-Tenant and Admin Panel Implementation (P0)
+    -   **Where to resume:** The code has been written across multiple files. The immediate next step is to restart the  and  services and then begin a thorough testing process.
+    -   **What will be achieved with this?** This will complete the user's core request for a multi-tenant architecture and provide the admin with necessary management tools.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on something:** None.
+
+**Upcoming and Future Tasks**
+-   **Upcoming Tasks:**
+    -   **(P0) Implement Admin Role Assignment:** Modify the registration logic in  to grant the admin role to .
+    -   **(P1) Implement Real Web Scraping:** Replace the mocked data in  and  with the actual usage: browser-use [-h] [--session SESSION] [--browser {chromium,real,remote}]
+                   [--headed] [--profile PROFILE] [--json] [--api-key API_KEY]
+                   [--mcp] [--template TEMPLATE]
+                   {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                   ...
+
+Browser automation CLI for browser-use
+
+positional arguments:
+  {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                        Command to execute
+    install             Install Chromium browser + system dependencies
+    init                Generate browser-use template file
+    open                Navigate to URL
+    click               Click element by index
+    type                Type text
+    input               Type text into specific element
+    scroll              Scroll page
+    back                Go back in history
+    screenshot          Take screenshot
+    state               Get browser state (URL, title, elements)
+    switch              Switch to tab
+    close-tab           Close tab
+    keys                Send keyboard keys
+    select              Select dropdown option
+    eval                Execute JavaScript
+    extract             Extract data using LLM
+    hover               Hover over element
+    dblclick            Double-click element
+    rightclick          Right-click element
+    cookies             Cookie operations
+    wait                Wait for conditions
+    get                 Get information
+    python              Execute Python code
+    run                 Run agent task (requires API key)
+    sessions            List active sessions
+    close               Close session
+    server              Server control
+    profile             Manage browser profiles
+
+options:
+  -h, --help            show this help message and exit
+  --session SESSION, -s SESSION
+                        Session name (default: default)
+  --browser {chromium,real,remote}, -b {chromium,real,remote}
+                        Browser mode
+  --headed              Show browser window
+  --profile PROFILE     Chrome profile (real browser mode)
+  --json                Output as JSON
+  --api-key API_KEY     Browser-Use API key
+  --mcp                 Run as MCP server (JSON-RPC via stdin/stdout)
+  --template TEMPLATE   Generate template file (use with --output for custom
+                        path)
+
+Examples:
+  browser-use install                    # Install Chromium browser
+  browser-use init                       # Generate template file (interactive)
+  browser-use init --template default    # Generate specific template
+  browser-use --mcp                      # Run as MCP server
+  browser-use open https://example.com
+  browser-use click 5
+  browser-use type "Hello World"
+  browser-use python "print(browser.url)"
+  browser-use run "Fill the contact form"
+  browser-use sessions
+  browser-use close library to perform AI-driven web scraping using the user's OpenAI key.
+    -   **(P1) Implement Real Telegram Bot:** Flesh out  to send reports and handle commands using the user's stored Telegram credentials.
+    -   **(P2) Implement Real Google Trends Scraping:** Use the  library to fetch real data as discussed.
+-   **Future Tasks:**
+    -   **(P2) Stripe Backend Integration:** Implement subscription management logic on the backend.
+    -   **(P3) One-Click Shopify/WooCommerce Import:** Develop the feature to export product data directly to e-commerce platforms.
+
+**Completed work in this session**
+-   **Full-Stack Scaffolding:** Built the initial FastAPI backend and React frontend application structure. (DONE)
+-   **UI/UX Foundation:** Created a full suite of UI pages (, , , , , , ) with a consistent dark theme using Shadcn components. (DONE)
+-   **Authentication:** Implemented JWT-based user registration and login. (DONE)
+-   **Feature Mockups:** Added backend endpoints and frontend components for Competitor Spy and Saturation Radar features, using mocked data. (DONE)
+-   **Architecture Pivot:** Shifted the plan from traditional scraping to using an AI browser agent (usage: browser-use [-h] [--session SESSION] [--browser {chromium,real,remote}]
+                   [--headed] [--profile PROFILE] [--json] [--api-key API_KEY]
+                   [--mcp] [--template TEMPLATE]
+                   {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                   ...
+
+Browser automation CLI for browser-use
+
+positional arguments:
+  {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                        Command to execute
+    install             Install Chromium browser + system dependencies
+    init                Generate browser-use template file
+    open                Navigate to URL
+    click               Click element by index
+    type                Type text
+    input               Type text into specific element
+    scroll              Scroll page
+    back                Go back in history
+    screenshot          Take screenshot
+    state               Get browser state (URL, title, elements)
+    switch              Switch to tab
+    close-tab           Close tab
+    keys                Send keyboard keys
+    select              Select dropdown option
+    eval                Execute JavaScript
+    extract             Extract data using LLM
+    hover               Hover over element
+    dblclick            Double-click element
+    rightclick          Right-click element
+    cookies             Cookie operations
+    wait                Wait for conditions
+    get                 Get information
+    python              Execute Python code
+    run                 Run agent task (requires API key)
+    sessions            List active sessions
+    close               Close session
+    server              Server control
+    profile             Manage browser profiles
+
+options:
+  -h, --help            show this help message and exit
+  --session SESSION, -s SESSION
+                        Session name (default: default)
+  --browser {chromium,real,remote}, -b {chromium,real,remote}
+                        Browser mode
+  --headed              Show browser window
+  --profile PROFILE     Chrome profile (real browser mode)
+  --json                Output as JSON
+  --api-key API_KEY     Browser-Use API key
+  --mcp                 Run as MCP server (JSON-RPC via stdin/stdout)
+  --template TEMPLATE   Generate template file (use with --output for custom
+                        path)
+
+Examples:
+  browser-use install                    # Install Chromium browser
+  browser-use init                       # Generate template file (interactive)
+  browser-use init --template default    # Generate specific template
+  browser-use --mcp                      # Run as MCP server
+  browser-use open https://example.com
+  browser-use click 5
+  browser-use type "Hello World"
+  browser-use python "print(browser.url)"
+  browser-use run "Fill the contact form"
+  browser-use sessions
+  browser-use close) to align with the user's vision. (DONE)
+
+**Earlier issues found/mentioned but not fixed**
+-   The frontend dev server instability () was worked around but not fundamentally solved. See **Issue 1** in .
+
+**Known issue recurrence from previous fork**
+-   N/A
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+-   **Frontend:** React, Tailwind CSS, Shadcn UI, Axios
+-   **Backend:** FastAPI, Pydantic, Motor (async MongoDB), JWT
+-   **Database:** MongoDB
+-   **Architecture:** Multi-tenant SaaS, REST API
+-   **Core Technology:** AI-powered browser automation via the usage: browser-use [-h] [--session SESSION] [--browser {chromium,real,remote}]
+                   [--headed] [--profile PROFILE] [--json] [--api-key API_KEY]
+                   [--mcp] [--template TEMPLATE]
+                   {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                   ...
+
+Browser automation CLI for browser-use
+
+positional arguments:
+  {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                        Command to execute
+    install             Install Chromium browser + system dependencies
+    init                Generate browser-use template file
+    open                Navigate to URL
+    click               Click element by index
+    type                Type text
+    input               Type text into specific element
+    scroll              Scroll page
+    back                Go back in history
+    screenshot          Take screenshot
+    state               Get browser state (URL, title, elements)
+    switch              Switch to tab
+    close-tab           Close tab
+    keys                Send keyboard keys
+    select              Select dropdown option
+    eval                Execute JavaScript
+    extract             Extract data using LLM
+    hover               Hover over element
+    dblclick            Double-click element
+    rightclick          Right-click element
+    cookies             Cookie operations
+    wait                Wait for conditions
+    get                 Get information
+    python              Execute Python code
+    run                 Run agent task (requires API key)
+    sessions            List active sessions
+    close               Close session
+    server              Server control
+    profile             Manage browser profiles
+
+options:
+  -h, --help            show this help message and exit
+  --session SESSION, -s SESSION
+                        Session name (default: default)
+  --browser {chromium,real,remote}, -b {chromium,real,remote}
+                        Browser mode
+  --headed              Show browser window
+  --profile PROFILE     Chrome profile (real browser mode)
+  --json                Output as JSON
+  --api-key API_KEY     Browser-Use API key
+  --mcp                 Run as MCP server (JSON-RPC via stdin/stdout)
+  --template TEMPLATE   Generate template file (use with --output for custom
+                        path)
+
+Examples:
+  browser-use install                    # Install Chromium browser
+  browser-use init                       # Generate template file (interactive)
+  browser-use init --template default    # Generate specific template
+  browser-use --mcp                      # Run as MCP server
+  browser-use open https://example.com
+  browser-use click 5
+  browser-use type "Hello World"
+  browser-use python "print(browser.url)"
+  browser-use run "Fill the contact form"
+  browser-use sessions
+  browser-use close library.
+
+**key DB schema**
+-   **users:** 
+-   **products:** 
+-   **competitors:** 
+
+**changes in tech stack**
+-   The scraping strategy was changed from traditional methods to using the usage: browser-use [-h] [--session SESSION] [--browser {chromium,real,remote}]
+                   [--headed] [--profile PROFILE] [--json] [--api-key API_KEY]
+                   [--mcp] [--template TEMPLATE]
+                   {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                   ...
+
+Browser automation CLI for browser-use
+
+positional arguments:
+  {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                        Command to execute
+    install             Install Chromium browser + system dependencies
+    init                Generate browser-use template file
+    open                Navigate to URL
+    click               Click element by index
+    type                Type text
+    input               Type text into specific element
+    scroll              Scroll page
+    back                Go back in history
+    screenshot          Take screenshot
+    state               Get browser state (URL, title, elements)
+    switch              Switch to tab
+    close-tab           Close tab
+    keys                Send keyboard keys
+    select              Select dropdown option
+    eval                Execute JavaScript
+    extract             Extract data using LLM
+    hover               Hover over element
+    dblclick            Double-click element
+    rightclick          Right-click element
+    cookies             Cookie operations
+    wait                Wait for conditions
+    get                 Get information
+    python              Execute Python code
+    run                 Run agent task (requires API key)
+    sessions            List active sessions
+    close               Close session
+    server              Server control
+    profile             Manage browser profiles
+
+options:
+  -h, --help            show this help message and exit
+  --session SESSION, -s SESSION
+                        Session name (default: default)
+  --browser {chromium,real,remote}, -b {chromium,real,remote}
+                        Browser mode
+  --headed              Show browser window
+  --profile PROFILE     Chrome profile (real browser mode)
+  --json                Output as JSON
+  --api-key API_KEY     Browser-Use API key
+  --mcp                 Run as MCP server (JSON-RPC via stdin/stdout)
+  --template TEMPLATE   Generate template file (use with --output for custom
+                        path)
+
+Examples:
+  browser-use install                    # Install Chromium browser
+  browser-use init                       # Generate template file (interactive)
+  browser-use init --template default    # Generate specific template
+  browser-use --mcp                      # Run as MCP server
+  browser-use open https://example.com
+  browser-use click 5
+  browser-use type "Hello World"
+  browser-use python "print(browser.url)"
+  browser-use run "Fill the contact form"
+  browser-use sessions
+  browser-use close library to enable an AI agent to control a web browser, as per the user's clarification of the original concept.
+
+**All files of reference**
+-   : The main backend file containing all API logic. **Needs refactoring.**
+-   : Defines the database schemas, including the newly added user API key fields.
+-   : The UI for users to manage their personal API keys.
+-   : The newly created, un-tested admin panel.
+-   : The placeholder file for the primary scraping logic.
+
+**Areas that need refactoring**:
+-   The  file is over 1000 lines long and acts as a monolith for all API endpoints. It should be broken down into separate router files (e.g., , , ) for maintainability.
+
+**key api endpoints**
+-   , 
+-    (PUT): For users to save their API keys.
+-    (GET): For the admin panel to retrieve user data.
+-    (POST): The endpoint that will trigger the AI browser agent.
+
+**Critical Info for New Agent**
+-   The most critical task is to **test the recent multi-tenancy and admin panel changes**. The application is likely in a broken state as services were not restarted after major code modifications.
+-   The user with email  must be assigned an 'admin' role upon registration. This logic is missing and must be added to .
+-   The user has explicitly stated they will provide API keys later. All integrations (OpenAI, Telegram) must be built to gracefully handle missing keys, either by being disabled or falling back to mock data, as is currently done on the Scanner page.
+-   Refactoring the monolithic  file should be a high priority after the current task is stabilized to improve code quality and maintainability.
+
+**documents and test reports created in this job**
+-   
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **User:** Clarified multi-tenant model: end-users provide their own keys, owner handles Stripe. (Status: Implementation in progress)
+2.  **User:** Confirmed the plan, requested an admin panel for , and asked if MongoDB is being used. (Status: Implementation in progress)
+3.  **User:** Approved agent's plan for the multi-tenant architecture. (Status: In progress)
+4.  **User:** Confirmed understanding of using usage: browser-use [-h] [--session SESSION] [--browser {chromium,real,remote}]
+                   [--headed] [--profile PROFILE] [--json] [--api-key API_KEY]
+                   [--mcp] [--template TEMPLATE]
+                   {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                   ...
+
+Browser automation CLI for browser-use
+
+positional arguments:
+  {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                        Command to execute
+    install             Install Chromium browser + system dependencies
+    init                Generate browser-use template file
+    open                Navigate to URL
+    click               Click element by index
+    type                Type text
+    input               Type text into specific element
+    scroll              Scroll page
+    back                Go back in history
+    screenshot          Take screenshot
+    state               Get browser state (URL, title, elements)
+    switch              Switch to tab
+    close-tab           Close tab
+    keys                Send keyboard keys
+    select              Select dropdown option
+    eval                Execute JavaScript
+    extract             Extract data using LLM
+    hover               Hover over element
+    dblclick            Double-click element
+    rightclick          Right-click element
+    cookies             Cookie operations
+    wait                Wait for conditions
+    get                 Get information
+    python              Execute Python code
+    run                 Run agent task (requires API key)
+    sessions            List active sessions
+    close               Close session
+    server              Server control
+    profile             Manage browser profiles
+
+options:
+  -h, --help            show this help message and exit
+  --session SESSION, -s SESSION
+                        Session name (default: default)
+  --browser {chromium,real,remote}, -b {chromium,real,remote}
+                        Browser mode
+  --headed              Show browser window
+  --profile PROFILE     Chrome profile (real browser mode)
+  --json                Output as JSON
+  --api-key API_KEY     Browser-Use API key
+  --mcp                 Run as MCP server (JSON-RPC via stdin/stdout)
+  --template TEMPLATE   Generate template file (use with --output for custom
+                        path)
+
+Examples:
+  browser-use install                    # Install Chromium browser
+  browser-use init                       # Generate template file (interactive)
+  browser-use init --template default    # Generate specific template
+  browser-use --mcp                      # Run as MCP server
+  browser-use open https://example.com
+  browser-use click 5
+  browser-use type "Hello World"
+  browser-use python "print(browser.url)"
+  browser-use run "Fill the contact form"
+  browser-use sessions
+  browser-use close and keeping existing features. (Status: Acknowledged)
+5.  **User:** Approved switching to the AI browser agent approach. (Status: Acknowledged)
+6.  **User:** Asked for clarification on how the original ClawdBot concept worked. (Status: Explained)
+7.  **User:** Questioned the simulated scanner logic and asked for real scraping. (Status: Addressed)
+8.  **User:** Requested to continue building the scrapers and competitor spy features. (Status: Completed with mock data)
+9.  **User:** Expressed confusion about Stripe settings being user-facing. (Status: Addressed)
+10. **User:** Asked to proceed with the build and will provide integration details later. (Status: Acknowledged)
+
+**Project Health Check:**
+-   **Broken:** High probability. The latest changes for the multi-tenant architecture and admin panel have not been tested. Services need a restart and full verification.
+-   **Mocked:** All core AI and scraping functionalities are placeholders returning static data.
+
+**3rd Party Integrations**
+-   **OpenAI GPT-4o**: Planned for AI browser control. Requires a User-provided key.
+-   **Telegram**: Planned for user notifications. Requires a User-provided key.
+-   **Stripe**: Planned for SaaS payments. Requires a SaaS Owner-provided key.
+-   **usage: browser-use [-h] [--session SESSION] [--browser {chromium,real,remote}]
+                   [--headed] [--profile PROFILE] [--json] [--api-key API_KEY]
+                   [--mcp] [--template TEMPLATE]
+                   {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                   ...
+
+Browser automation CLI for browser-use
+
+positional arguments:
+  {install,init,open,click,type,input,scroll,back,screenshot,state,switch,close-tab,keys,select,eval,extract,hover,dblclick,rightclick,cookies,wait,get,python,run,sessions,close,server,profile}
+                        Command to execute
+    install             Install Chromium browser + system dependencies
+    init                Generate browser-use template file
+    open                Navigate to URL
+    click               Click element by index
+    type                Type text
+    input               Type text into specific element
+    scroll              Scroll page
+    back                Go back in history
+    screenshot          Take screenshot
+    state               Get browser state (URL, title, elements)
+    switch              Switch to tab
+    close-tab           Close tab
+    keys                Send keyboard keys
+    select              Select dropdown option
+    eval                Execute JavaScript
+    extract             Extract data using LLM
+    hover               Hover over element
+    dblclick            Double-click element
+    rightclick          Right-click element
+    cookies             Cookie operations
+    wait                Wait for conditions
+    get                 Get information
+    python              Execute Python code
+    run                 Run agent task (requires API key)
+    sessions            List active sessions
+    close               Close session
+    server              Server control
+    profile             Manage browser profiles
+
+options:
+  -h, --help            show this help message and exit
+  --session SESSION, -s SESSION
+                        Session name (default: default)
+  --browser {chromium,real,remote}, -b {chromium,real,remote}
+                        Browser mode
+  --headed              Show browser window
+  --profile PROFILE     Chrome profile (real browser mode)
+  --json                Output as JSON
+  --api-key API_KEY     Browser-Use API key
+  --mcp                 Run as MCP server (JSON-RPC via stdin/stdout)
+  --template TEMPLATE   Generate template file (use with --output for custom
+                        path)
+
+Examples:
+  browser-use install                    # Install Chromium browser
+  browser-use init                       # Generate template file (interactive)
+  browser-use init --template default    # Generate specific template
+  browser-use --mcp                      # Run as MCP server
+  browser-use open https://example.com
+  browser-use click 5
+  browser-use type "Hello World"
+  browser-use python "print(browser.url)"
+  browser-use run "Fill the contact form"
+  browser-use sessions
+  browser-use close**: Python library for AI browser automation.
+-   ****: Python library for Google Trends data.
+
+**Testing status**
+-   **Testing agent used after significant changes:** NO
+-   **Troubleshoot agent used after agent stuck in loop:** NO
+-   **Test files created:** []
+-   **Known regressions:** None, but risk is high due to lack of testing.
+
+**Credentials to test flow:**
+-   **Admin Email:**  (password must be set on first registration).
+
+**What agent forgot to execute**
+-   The agent did not restart services or test the app after the major multi-tenancy and admin panel implementation.
+-   The agent did not implement the logic to assign the 'admin' role to  upon registration.
+-   The agent created the  page but forgot to add a navigation link to it in the UI for the admin user.</analysis>
