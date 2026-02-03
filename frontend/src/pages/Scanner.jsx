@@ -27,7 +27,7 @@ export default function Scanner() {
 
   const checkAiStatus = async () => {
     try {
-      const response = await getAiBrowserStatus();
+      const response = await getScanStatus();
       setAiStatus(response.data);
     } catch (error) {
       console.error('Failed to get AI status:', error);
@@ -37,13 +37,12 @@ export default function Scanner() {
   const handleFullScan = async () => {
     setScanning(true);
     try {
-      let response;
-      if (useAiBrowser && aiStatus?.is_ready) {
-        response = await runAiBrowserScan();
-        toast.success('AI Browser scan complete!');
+      const response = await runFullScan();
+      const mode = response.data.scan_mode;
+      if (mode === 'ai_powered') {
+        toast.success('AI-powered scan complete!');
       } else {
-        response = await runFullScan();
-        toast.success(`Scan complete! Found ${response.data.total_products} products`);
+        toast.success(`Scan complete! Found ${response.data.total_products} products (sample data)`);
       }
       setResults(response.data);
     } catch (error) {
