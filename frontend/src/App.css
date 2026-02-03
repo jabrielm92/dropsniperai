@@ -1,34 +1,215 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* ProductScout AI - Global Styles */
+
+/* Remove default centering */
+.App {
+  min-height: 100vh;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+/* Primary button glow */
+.btn-primary-glow {
+  box-shadow: 0 0 20px rgba(0, 230, 118, 0.3);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.btn-primary-glow:hover {
+  box-shadow: 0 0 30px rgba(0, 230, 118, 0.5);
+  transform: translateY(-2px);
 }
 
-.App-link {
-    color: #61dafb;
+/* Card hover effects */
+.card-hover {
+  transition: border-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.card-hover:hover {
+  border-color: rgba(0, 230, 118, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Score badge styles */
+.score-high {
+  background: linear-gradient(135deg, rgba(0, 230, 118, 0.2), rgba(0, 230, 118, 0.1));
+  border: 1px solid rgba(0, 230, 118, 0.3);
+  color: #00E676;
+}
+
+.score-medium {
+  background: linear-gradient(135deg, rgba(255, 214, 0, 0.2), rgba(255, 214, 0, 0.1));
+  border: 1px solid rgba(255, 214, 0, 0.3);
+  color: #FFD600;
+}
+
+.score-low {
+  background: linear-gradient(135deg, rgba(255, 61, 0, 0.2), rgba(255, 61, 0, 0.1));
+  border: 1px solid rgba(255, 61, 0, 0.3);
+  color: #FF3D00;
+}
+
+/* Trend indicators */
+.trend-up {
+  color: #00E676;
+}
+
+.trend-down {
+  color: #FF3D00;
+}
+
+.trend-stable {
+  color: #FFD600;
+}
+
+/* Glass morphism */
+.glass-card {
+  backdrop-filter: blur(16px);
+  background: rgba(18, 18, 18, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #00E676 0%, #2979FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Saturation badges */
+.saturation-low {
+  background: rgba(0, 230, 118, 0.15);
+  color: #00E676;
+}
+
+.saturation-medium {
+  background: rgba(255, 214, 0, 0.15);
+  color: #FFD600;
+}
+
+.saturation-high {
+  background: rgba(255, 61, 0, 0.15);
+  color: #FF3D00;
+}
+
+/* Scrollbar for specific containers */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #27272A;
+  border-radius: 3px;
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulse animation for live indicators */
+.pulse-live {
+  animation: pulseLive 2s ease-in-out infinite;
+}
+
+@keyframes pulseLive {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Hero background overlay */
+.hero-overlay {
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0.7) 0%, rgba(10, 10, 10, 0.95) 100%);
+}
+
+/* Bento grid for dashboard */
+.bento-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, 1fr);
+}
+
+@media (min-width: 768px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .bento-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .bento-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Product card image */
+.product-image {
+  aspect-ratio: 1;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.product-card:hover .product-image {
+  transform: scale(1.05);
+}
+
+/* Navigation active state */
+.nav-active {
+  color: #00E676;
+  border-bottom: 2px solid #00E676;
+}
+
+/* Input focus state */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #00E676;
+  box-shadow: 0 0 0 2px rgba(0, 230, 118, 0.2);
+}
+
+/* Table styles */
+.data-table th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #A1A1AA;
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
