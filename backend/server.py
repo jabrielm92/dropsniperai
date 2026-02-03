@@ -1039,24 +1039,25 @@ async def send_telegram_report(user: User = Depends(get_current_user)):
         ]
     }
     
-    result = await telegram_bot.send_daily_report(chat_id, report_data)
+    result = await user_bot.send_daily_report(user.telegram_chat_id, report_data)
     return result
 
 @api_router.post("/telegram/send-launch-kit/{kit_id}")
 async def send_launch_kit_telegram(kit_id: str, user: User = Depends(get_current_user)):
-    """Send launch kit summary to Telegram"""
-    user_doc = await db.users.find_one({"id": user.id}, {"_id": 0})
-    chat_id = user_doc.get("telegram_chat_id")
-    
-    if not chat_id:
-        raise HTTPException(status_code=400, detail="Telegram not connected")
-    
-    if not telegram_bot.is_configured:
-        raise HTTPException(status_code=400, detail="Telegram bot not configured")
+    """Send launch kit summary to user's Telegram"""
+    if not user.telegram_bot_token or not user.telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Configure your Telegram first")
     
     kit = await db.launch_kits.find_one({"id": kit_id, "user_id": user.id}, {"_id": 0})
     if not kit:
         raise HTTPException(status_code=404, detail="Launch kit not found")
+    
+    # Create bot with user's token
+    from services.telegram_bot import TelegramBot
+    user_bot = TelegramBot()
+    user_bot.bot_token = user.telegram_bot_token
+    user_bot.is_configured = True
+    user_bot.base_url = f"https://api.telegram.org/bot{user.telegram_bot_token}"
     
     result = await telegram_bot.send_launch_kit_summary(chat_id, kit)
     return result
