@@ -169,7 +169,6 @@ async def analyze_products_trends(
 ):
     """Analyze Google Trends for multiple product names"""
     check_feature_access(user.subscription_tier, "google_trends")
-    db = get_db()
     results = []
     
     for name in product_names[:5]:  # Limit to 5 to avoid rate limiting
