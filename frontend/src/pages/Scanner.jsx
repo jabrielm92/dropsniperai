@@ -1,13 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Switch } from '../components/ui/switch';
 import { 
   ArrowLeft, Play, Loader2, RefreshCw, TrendingUp,
-  Package, Search, BarChart3, Globe, Bot, Zap, AlertTriangle, Settings
+  Package, Search, Globe, Bot, AlertTriangle, Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { runFullScan, scanSource, getScanStatus } from '../lib/api';
@@ -18,40 +16,45 @@ export default function Scanner() {
   const [scanningSource, setScanningSource] = useState(null);
   const [results, setResults] = useState(null);
   const [sourceResults, setSourceResults] = useState({});
-  const [aiStatus, setAiStatus] = useState(null);
+  const [scanStatus, setScanStatus] = useState(null);
 
   useEffect(() => {
-    checkAiStatus();
+    checkStatus();
   }, []);
 
-  const checkAiStatus = async () => {
+  const checkStatus = async () => {
     try {
       const response = await getScanStatus();
-      setAiStatus(response.data);
+      setScanStatus(response.data);
     } catch (error) {
-      console.error('Failed to get AI status:', error);
+      console.error('Failed to get scan status:', error);
     }
   };
 
   const handleFullScan = async () => {
+    if (!scanStatus?.ai_scanning_available) {
+      toast.error('Add your OpenAI API key in Settings first');
+      return;
+    }
+    
     setScanning(true);
     try {
       const response = await runFullScan();
-      const mode = response.data.scan_mode;
-      if (mode === 'ai_powered') {
-        toast.success('AI-powered scan complete!');
-      } else {
-        toast.success(`Scan complete! Found ${response.data.total_products} products (sample data)`);
-      }
+      toast.success(`Scan complete! Found ${response.data.total_products} products`);
       setResults(response.data);
     } catch (error) {
-      toast.error('Scan failed');
+      toast.error(error.response?.data?.detail || 'Scan failed');
     } finally {
       setScanning(false);
     }
   };
 
   const handleSourceScan = async (source) => {
+    if (!scanStatus?.ai_scanning_available) {
+      toast.error('Add your OpenAI API key in Settings first');
+      return;
+    }
+    
     setScanningSource(source);
     try {
       const response = await scanSource(source);
@@ -59,18 +62,16 @@ export default function Scanner() {
         ...prev,
         [source]: response.data
       }));
-      const mode = response.data.scan_mode;
-      const count = response.data.count || response.data.result?.products?.length || 0;
-      toast.success(`${mode === 'ai_powered' ? 'AI scan' : 'Sample data'}: ${count} products from ${source}`);
+      toast.success(`Found ${response.data.count} products from ${source}`);
     } catch (error) {
-      toast.error(`Failed to scan ${source}`);
+      toast.error(error.response?.data?.detail || `Failed to scan ${source}`);
     } finally {
       setScanningSource(null);
     }
   };
 
   const sources = [
-    { id: 'tiktok', name: 'TikTok', icon: <TrendingUp className="w-5 h-5" />, color: 'text-pink-500', bg: 'bg-pink-500/10', desc: 'Viral hashtags 10M+ views' },
+    { id: 'tiktok', name: 'TikTok', icon: <TrendingUp className="w-5 h-5" />, color: 'text-pink-500', bg: 'bg-pink-500/10', desc: 'Viral products with 10M+ views' },
     { id: 'amazon', name: 'Amazon', icon: <Package className="w-5 h-5" />, color: 'text-orange-500', bg: 'bg-orange-500/10', desc: 'Movers & Shakers' },
     { id: 'aliexpress', name: 'AliExpress', icon: <Globe className="w-5 h-5" />, color: 'text-red-500', bg: 'bg-red-500/10', desc: 'Hot products & pricing' },
     { id: 'google_trends', name: 'Google Trends', icon: <Search className="w-5 h-5" />, color: 'text-blue-500', bg: 'bg-blue-500/10', desc: 'Rising search terms' },
@@ -93,224 +94,152 @@ export default function Scanner() {
       </header>
 
       <main className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Product Scanner</h1>
-            <p className="text-muted-foreground">Scan multiple data sources for trending products</p>
-          </div>
+        {/* Run Full Scan - Primary CTA */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-2">Product Scanner</h1>
+          <p className="text-muted-foreground mb-6">AI-powered scanning across multiple data sources</p>
+          
           <Button 
             onClick={handleFullScan}
-            disabled={scanning}
-            className="bg-primary text-black font-bold hover:bg-primary/90 px-8"
+            disabled={scanning || !scanStatus?.ai_scanning_available}
+            className="bg-primary text-black font-bold hover:bg-primary/90 px-12 py-6 text-lg"
             data-testid="full-scan-btn"
           >
             {scanning ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Scanning...
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Scanning All Sources...
               </>
             ) : (
               <>
-                {aiStatus?.ai_scanning_available ? <Bot className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-                Run Full Scan
+                <Bot className="w-5 h-5 mr-2" />
+                Run Full AI Scan
               </>
             )}
           </Button>
         </div>
 
-        {/* AI Scanner Status */}
-        <Card className={`mb-8 ${aiStatus?.ai_scanning_available ? 'bg-primary/10 border-primary/30' : 'bg-[#121212] border-white/5'}`}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl ${aiStatus?.ai_scanning_available ? 'bg-primary/20' : 'bg-white/5'} flex items-center justify-center`}>
-                  <Bot className={`w-6 h-6 ${aiStatus?.ai_scanning_available ? 'text-primary' : 'text-muted-foreground'}`} />
+        {/* Status Banner */}
+        {!scanStatus?.ai_scanning_available && (
+          <Card className="mb-8 bg-yellow-500/10 border-yellow-500/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                  <div>
+                    <p className="font-medium text-yellow-500">OpenAI API Key Required</p>
+                    <p className="text-sm text-muted-foreground">Add your key in Settings to enable AI scanning</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold flex items-center gap-2">
-                    Scan Mode: {aiStatus?.current_mode === 'ai_powered' ? 'AI-Powered' : 'Sample Data'}
-                    {aiStatus?.ai_scanning_available ? (
-                      <Badge className="bg-primary/20 text-primary">AI Ready</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">Sample Mode</Badge>
-                    )}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {aiStatus?.ai_scanning_available 
-                      ? 'AI will autonomously browse websites like a human using your OpenAI key'
-                      : 'Using sample data. Add your OpenAI API key in Settings to enable AI scanning.'}
-                  </p>
-                </div>
-              </div>
-              {!aiStatus?.ai_scanning_available && (
                 <Button 
                   variant="outline"
                   onClick={() => navigate('/settings')}
-                  className="border-primary/30 text-primary"
+                  className="border-yellow-500/30 text-yellow-500"
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   Add API Key
                 </Button>
-              )}
-            </div>
-            
-            {!aiStatus?.ai_scanning_available && (
-              <div className="mt-4 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-yellow-500 font-medium">OpenAI API Key Required for AI Scanning</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Go to Settings → API Keys to add your OpenAI API key. The AI will then browse TikTok, Amazon, AliExpress, and Google Trends autonomously.
-                  </p>
-                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Source Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Results */}
+        {results && (
+          <Card className="bg-[#121212] border-white/5 mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-primary" />
+                  Scan Results
+                </span>
+                <Badge className="bg-primary/20 text-primary font-mono">
+                  {results.total_products} products found
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 max-h-[500px] overflow-y-auto custom-scrollbar">
+                {(results.products || []).map((product, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium">{product.name}</p>
+                        <Badge variant="outline" className="text-xs capitalize">{product.source}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{product.why_trending || product.category}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs">
+                        {product.estimated_views && (
+                          <span className="text-muted-foreground">{(product.estimated_views / 1000000).toFixed(1)}M views</span>
+                        )}
+                        {product.source_cost && (
+                          <span className="text-muted-foreground">Cost: ${product.source_cost}</span>
+                        )}
+                        {product.recommended_price && (
+                          <span className="text-primary">Sell: ${product.recommended_price}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right ml-4">
+                      {product.trend_score && (
+                        <div className={`px-3 py-1 rounded-full text-sm font-bold ${
+                          product.trend_score >= 80 ? 'bg-primary/20 text-primary' :
+                          product.trend_score >= 60 ? 'bg-yellow-500/20 text-yellow-500' :
+                          'bg-white/10 text-muted-foreground'
+                        }`}>
+                          {product.trend_score}
+                        </div>
+                      )}
+                      {product.margin_percent && (
+                        <p className="text-xs text-muted-foreground mt-1">{product.margin_percent}% margin</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Individual Source Scans */}
+        <div className="text-center mb-4">
+          <p className="text-sm text-muted-foreground">Or scan individual sources:</p>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {sources.map((source) => (
             <Card key={source.id} className="bg-[#121212] border-white/5 hover:border-primary/30 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-10 h-10 rounded-lg ${source.bg} flex items-center justify-center`}>
-                    <span className={source.color}>{source.icon}</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleSourceScan(source.id)}
-                    disabled={scanningSource === source.id}
-                  >
-                    <RefreshCw className={`w-4 h-4 ${scanningSource === source.id ? 'animate-spin' : ''}`} />
-                  </Button>
+              <CardContent className="p-4 text-center">
+                <div className={`w-12 h-12 rounded-lg ${source.bg} flex items-center justify-center mx-auto mb-3`}>
+                  <span className={source.color}>{source.icon}</span>
                 </div>
-                <h3 className="font-bold">{source.name}</h3>
-                <p className="text-xs text-muted-foreground mb-2">{source.desc}</p>
-                <p className="text-sm text-muted-foreground">
-                  {sourceResults[source.id] ? (
-                    <span className="text-primary">{sourceResults[source.id].count} products</span>
+                <h3 className="font-bold mb-1">{source.name}</h3>
+                <p className="text-xs text-muted-foreground mb-3">{source.desc}</p>
+                
+                {sourceResults[source.id] ? (
+                  <p className="text-sm text-primary font-medium mb-2">{sourceResults[source.id].count} products</p>
+                ) : null}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSourceScan(source.id)}
+                  disabled={scanningSource === source.id || !scanStatus?.ai_scanning_available}
+                  className="w-full"
+                >
+                  {scanningSource === source.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    'Click to scan'
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-1" />
+                      Scan
+                    </>
                   )}
-                </p>
+                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
-
-        {/* Results */}
-        {results && (
-          <Card className="bg-[#121212] border-white/5">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  {results.scan_type === 'ai_browser_full' && <Bot className="w-5 h-5 text-primary" />}
-                  Scan Results
-                </span>
-                <Badge className="bg-primary/20 text-primary font-mono">
-                  {results.total_products || Object.keys(results.results || {}).length} {results.scan_type === 'ai_browser_full' ? 'sources scanned' : 'products found'}
-                </Badge>
-              </CardTitle>
-              {results.fallback && (
-                <CardDescription className="text-yellow-500">
-                  Using mock data (AI Browser not configured)
-                </CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
-              {results.scan_type === 'ai_browser_full' ? (
-                // AI Browser Results
-                <div className="space-y-4">
-                  {Object.entries(results.results || {}).map(([source, data]) => (
-                    <div key={source} className="p-4 bg-white/5 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold capitalize">{source.replace('_', ' ')}</h4>
-                        {data.success ? (
-                          <Badge className="bg-primary/20 text-primary">Success</Badge>
-                        ) : (
-                          <Badge variant="destructive">Error</Badge>
-                        )}
-                      </div>
-                      {data.raw_result && (
-                        <pre className="text-xs text-muted-foreground overflow-x-auto max-h-32 custom-scrollbar">
-                          {data.raw_result.substring(0, 500)}...
-                        </pre>
-                      )}
-                      {data.error && (
-                        <p className="text-sm text-destructive">{data.error}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                // Mock Scanner Results
-                <Tabs defaultValue="all">
-                  <TabsList className="bg-[#0A0A0A] border border-white/5 mb-4">
-                    <TabsTrigger value="all">All ({results.total_products})</TabsTrigger>
-                    {Object.entries(results.source_stats || {}).map(([source, count]) => (
-                      <TabsTrigger key={source} value={source}>
-                        {source} ({count})
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-
-                  <TabsContent value="all">
-                    <div className="grid gap-3 max-h-96 overflow-y-auto custom-scrollbar">
-                      {(results.products || []).map((product, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                          <div>
-                            <p className="font-medium">{product.name}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline" className="text-xs">{product.source}</Badge>
-                              {product.trend_data?.growth_percent && (
-                                <span className="text-xs text-primary">+{product.trend_data.growth_percent}%</span>
-                              )}
-                              {product.trend_data?.views && (
-                                <span className="text-xs text-muted-foreground">{(product.trend_data.views / 1000000).toFixed(1)}M views</span>
-                              )}
-                              {product.trend_data?.orders_30d && (
-                                <span className="text-xs text-muted-foreground">{product.trend_data.orders_30d.toLocaleString()} orders</span>
-                              )}
-                            </div>
-                          </div>
-                          {product.trend_data?.price && (
-                            <span className="font-mono text-primary">${product.trend_data.price}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
-
-                  {Object.keys(results.source_stats || {}).map((source) => (
-                    <TabsContent key={source} value={source}>
-                      <div className="grid gap-3 max-h-96 overflow-y-auto custom-scrollbar">
-                        {(results.products || [])
-                          .filter(p => p.source === source)
-                          .map((product, i) => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                              <div>
-                                <p className="font-medium">{product.name}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  {product.trend_data?.growth_percent && (
-                                    <span className="text-xs text-primary">+{product.trend_data.growth_percent}%</span>
-                                  )}
-                                  {product.trend_data?.views && (
-                                    <span className="text-xs text-muted-foreground">{(product.trend_data.views / 1000000).toFixed(1)}M views</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              )}
-            </CardContent>
-          </Card>
-        )}
       </main>
     </div>
   );
