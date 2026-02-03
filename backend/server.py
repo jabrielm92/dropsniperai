@@ -264,6 +264,7 @@ from services.competitor_spy import (
     CompetitorStore, CompetitorAlert, CompetitorProduct,
     generate_mock_competitor_data, detect_store_changes
 )
+from routes.tiers import check_feature_access, get_tier_limits
 
 scout_engine = ProductScoutEngine()
 
