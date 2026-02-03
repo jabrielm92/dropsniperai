@@ -129,7 +129,7 @@ export default function Landing() {
               </div>
               
               <p className="text-sm text-muted-foreground">
-                ✓ No credit card required &nbsp; ✓ Cancel anytime &nbsp; ✓ 24-hour free trial
+                ✓ Cancel anytime &nbsp; ✓ 24-hour free trial
               </p>
             </div>
 
@@ -184,10 +184,12 @@ export default function Landing() {
                 </div>
 
                 {/* Action Button */}
-                <Button className="w-full mt-4 bg-primary/20 text-primary hover:bg-primary/30">
-                  <Rocket className="w-4 h-4 mr-2" />
-                  Generate Launch Kit
-                </Button>
+                <Link to="/pricing">
+                  <Button className="w-full mt-4 bg-primary/20 text-primary hover:bg-primary/30">
+                    <Rocket className="w-4 h-4 mr-2" />
+                    Generate Launch Kit
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
@@ -407,7 +409,7 @@ export default function Landing() {
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>
-          <p className="text-sm text-muted-foreground mt-4">No credit card required</p>
+          <p className="text-sm text-muted-foreground mt-4">Cancel anytime</p>
         </div>
       </section>
 
