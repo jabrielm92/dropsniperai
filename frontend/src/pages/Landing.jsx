@@ -4,9 +4,9 @@ import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
 import { 
   Rocket, Target, Filter, CheckCircle, TrendingUp, DollarSign, 
-  Zap, BarChart3, Shield, Clock, ArrowRight, Play, Star,
-  Send, Bell, LineChart, Store, Package, Users, Globe,
-  Smartphone, MessageSquare, Eye, Search, Layers
+  Zap, BarChart3, ArrowRight, Star,
+  Send, Bell, LineChart, Store, Package,
+  Smartphone, Eye, Search
 } from 'lucide-react';
 
 export default function Landing() {
@@ -59,11 +59,20 @@ export default function Landing() {
     { icon: <Package />, text: "New supplier deals & updates" },
   ];
 
+  // Mock product data for dashboard preview
+  const mockProducts = [
+    { name: "Portable Neck Fan", score: 94, cost: "$6.20", sell: "$34.99", trend: "+340%", trendUp: true },
+    { name: "LED Book Lamp", score: 89, cost: "$11.40", sell: "$44.99", trend: "+180%", trendUp: true },
+    { name: "Cloud Slides", score: 86, cost: "$8.90", sell: "$38.99", trend: "+95%", trendUp: true },
+  ];
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] relative overflow-hidden">
-      {/* Hero Section */}
-      <section className="relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
+      {/* Hero Section - Split Layout */}
+      <section className="relative min-h-screen">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+        <div className="absolute top-1/4 right-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[150px]" />
         
         <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-6">
           <div className="flex items-center gap-2">
@@ -85,41 +94,102 @@ export default function Landing() {
           </div>
         </nav>
 
-        <div className="relative z-10 px-6 md:px-12 pt-16 pb-24">
-          <div className="max-w-5xl mx-auto text-center">
-            <Badge className="bg-primary/10 text-primary border-primary/20 mb-6">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse mr-2" />
-              AI-Powered Product Research
-            </Badge>
-            
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] mb-6">
-              Stop Guessing Products.
-              <br />
-              <span className="text-primary">Start Printing Money.</span>
-            </h1>
-            
-            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-              AI agents scout, filter, validate & prepare winning dropshipping products while you sleep. 
-              Wake up to launch-ready opportunities with profit calculations, supplier sourcing, and ad copy done.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-              <Link to="/register">
-                <Button size="lg" className="bg-primary text-black font-bold text-lg px-8 py-6 hover:bg-primary/90">
-                  Start Free 24-Hour Trial
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </Link>
-              <Link to="/pricing">
-                <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/5 px-8 py-6">
-                  View Pricing
-                </Button>
-              </Link>
+        <div className="relative z-10 px-6 md:px-12 pt-12 pb-24">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left side - Hero Content */}
+            <div className="text-left">
+              <Badge className="bg-primary/10 text-primary border-primary/20 mb-6">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse mr-2" />
+                AI-Powered Product Research
+              </Badge>
+              
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] mb-6">
+                Stop Guessing Products.
+                <br />
+                <span className="text-primary">Start Printing Money.</span>
+              </h1>
+              
+              <p className="text-lg text-muted-foreground max-w-xl mb-8 leading-relaxed">
+                AI agents scout, filter, validate & prepare winning dropshipping products while you sleep. 
+                Wake up to launch-ready opportunities with profit calculations, supplier sourcing, and ad copy done.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                <Link to="/register">
+                  <Button size="lg" className="bg-primary text-black font-bold text-lg px-8 py-6 hover:bg-primary/90">
+                    Start Free 24-Hour Trial
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </Link>
+                <Link to="/pricing">
+                  <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/5 px-8 py-6">
+                    View Pricing
+                  </Button>
+                </Link>
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                ✓ No credit card required &nbsp; ✓ Cancel anytime &nbsp; ✓ 24-hour free trial
+              </p>
             </div>
-            
-            <p className="text-sm text-muted-foreground">
-              ✓ No credit card required &nbsp; ✓ Cancel anytime &nbsp; ✓ 24-hour free trial
-            </p>
+
+            {/* Right side - Dashboard Preview */}
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent blur-3xl rounded-3xl" />
+              <div className="relative bg-[#121212] rounded-2xl border border-white/10 p-6 shadow-2xl">
+                {/* Mock Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-primary" />
+                    <span className="font-bold">Daily Intelligence</span>
+                  </div>
+                  <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Live</Badge>
+                </div>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="bg-[#0A0A0A] rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-primary">2,847</div>
+                    <div className="text-xs text-muted-foreground">Scanned</div>
+                  </div>
+                  <div className="bg-[#0A0A0A] rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-yellow-400">23</div>
+                    <div className="text-xs text-muted-foreground">Passed</div>
+                  </div>
+                  <div className="bg-[#0A0A0A] rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-green-400">5</div>
+                    <div className="text-xs text-muted-foreground">Winners</div>
+                  </div>
+                </div>
+
+                {/* Product List */}
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-muted-foreground mb-2">Top Opportunities</div>
+                  {mockProducts.map((product, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-[#0A0A0A] rounded-lg hover:bg-white/5 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
+                          {product.score}
+                        </div>
+                        <div>
+                          <div className="font-medium text-sm">{product.name}</div>
+                          <div className="text-xs text-muted-foreground">{product.cost} → {product.sell}</div>
+                        </div>
+                      </div>
+                      <div className={`text-sm font-bold ${product.trendUp ? 'text-green-400' : 'text-red-400'}`}>
+                        {product.trendUp ? '↑' : '↓'} {product.trend}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Action Button */}
+                <Button className="w-full mt-4 bg-primary/20 text-primary hover:bg-primary/30">
+                  <Rocket className="w-4 h-4 mr-2" />
+                  Generate Launch Kit
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
