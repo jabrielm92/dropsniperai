@@ -5,13 +5,24 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '../components/ui/dialog';
 import { 
   ArrowLeft, Users, Package, Rocket, BarChart3, 
   Search, RefreshCw, Loader2, Shield, Bot, Send,
-  Crown, ChevronRight
+  Crown, ChevronRight, Plus, Trash2, Edit, Clock, Play
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAdminStats, getAdminUsers, updateUserTier, getRecentActivity } from '../lib/api';
+import { 
+  getAdminStats, getAdminUsers, updateUserTier, getRecentActivity,
+  createAdminUser, deleteAdminUser, updateAdminUser, getSchedulerStatus, triggerDailyReports
+} from '../lib/api';
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -23,19 +34,30 @@ export default function Admin() {
   const [recentActivity, setRecentActivity] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [updatingTier, setUpdatingTier] = useState(null);
+  const [schedulerStatus, setSchedulerStatus] = useState(null);
+  const [triggeringReports, setTriggeringReports] = useState(false);
+  
+  // Modal states
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [addingUser, setAddingUser] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(false);
+  const [newUser, setNewUser] = useState({ email: '', name: '', password: '', subscription_tier: 'free' });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, usersRes, activityRes] = await Promise.all([
+      const [statsRes, usersRes, activityRes, schedulerRes] = await Promise.all([
         getAdminStats(),
         getAdminUsers(0, 50),
-        getRecentActivity(10)
+        getRecentActivity(10),
+        getSchedulerStatus().catch(() => ({ data: null }))
       ]);
       setStats(statsRes.data);
       setUsers(usersRes.data.users);
       setTotalUsers(usersRes.data.total);
       setRecentActivity(activityRes.data);
+      setSchedulerStatus(schedulerRes.data);
     } catch (error) {
       if (error.response?.status === 403) {
         toast.error('Admin access required');
@@ -69,12 +91,57 @@ export default function Admin() {
     }
   };
 
+  const handleAddUser = async () => {
+    if (!newUser.email || !newUser.name || !newUser.password) {
+      toast.error('All fields required');
+      return;
+    }
+    setAddingUser(true);
+    try {
+      await createAdminUser(newUser);
+      toast.success('User created');
+      setShowAddUser(false);
+      setNewUser({ email: '', name: '', password: '', subscription_tier: 'free' });
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to create user');
+    } finally {
+      setAddingUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    setDeletingUser(true);
+    try {
+      await deleteAdminUser(userId);
+      toast.success('User deleted');
+      setShowDeleteConfirm(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to delete user');
+    } finally {
+      setDeletingUser(false);
+    }
+  };
+
+  const handleTriggerReports = async () => {
+    setTriggeringReports(true);
+    try {
+      await triggerDailyReports();
+      toast.success('Daily reports triggered!');
+    } catch (error) {
+      toast.error('Failed to trigger reports');
+    } finally {
+      setTriggeringReports(false);
+    }
+  };
+
   const filteredUsers = users.filter(u => 
     u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const tiers = ['free', 'scout', 'hunter', 'predator', 'agency'];
+  const tiers = ['free', 'sniper', 'elite', 'agency', 'enterprise'];
 
   if (loading) {
     return (
