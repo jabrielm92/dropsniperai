@@ -36,7 +36,30 @@ class TelegramBot:
                         "parse_mode": parse_mode
                     }
                 )
-                return {"success": response.status_code == 200, "response": response.json()}
+                result = response.json()
+                
+                # Handle Telegram API errors with helpful messages
+                if response.status_code != 200 or not result.get("ok"):
+                    error_code = result.get("error_code", response.status_code)
+                    error_desc = result.get("description", "Unknown error")
+                    
+                    # Provide helpful error messages
+                    if error_code == 403:
+                        return {
+                            "success": False, 
+                            "error": "Bot blocked or not started",
+                            "detail": "You must START a conversation with your bot first! Open Telegram, search for your bot, and click START or send /start"
+                        }
+                    elif error_code == 400 and "chat not found" in error_desc.lower():
+                        return {
+                            "success": False,
+                            "error": "Invalid Chat ID",
+                            "detail": "The Chat ID is incorrect. Message @userinfobot on Telegram to get YOUR personal ID (not the bot's ID)"
+                        }
+                    else:
+                        return {"success": False, "error": error_desc}
+                
+                return {"success": True, "response": result}
         except Exception as e:
             return {"error": str(e), "success": False}
     
