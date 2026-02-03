@@ -168,6 +168,7 @@ async def analyze_products_trends(
     user: User = Depends(get_current_user)
 ):
     """Analyze Google Trends for multiple product names"""
+    check_feature_access(user.subscription_tier, "google_trends")
     db = get_db()
     results = []
     
