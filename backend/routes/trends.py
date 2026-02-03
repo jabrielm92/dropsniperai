@@ -117,6 +117,7 @@ async def get_related_queries(
     user: User = Depends(get_current_user)
 ):
     """Get related queries for a keyword"""
+    check_feature_access(user.subscription_tier, "google_trends")
     try:
         pytrends = get_pytrends()
         
