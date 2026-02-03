@@ -8,10 +8,10 @@ import SetupWizard from '../components/SetupWizard';
 import { 
   Zap, LogOut, Settings, TrendingUp, TrendingDown, Minus,
   Target, AlertTriangle, Rocket, BarChart3, 
-  Package, Filter, Clock, ChevronRight, RefreshCw, Search, Shield, Sparkles
+  Package, Filter, Clock, ChevronRight, RefreshCw, Search, Shield, Sparkles, Play, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDailyReport, getTodayProducts, getStats, seedData, getUserKeys } from '../lib/api';
+import { getDailyReport, getTodayProducts, getStats, seedData, getUserKeys, runFullScan, getScanStatus } from '../lib/api';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -22,12 +22,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanStatus, setScanStatus] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       await seedData();
-      const [reportRes, productsRes, statsRes, keysRes] = await Promise.all([
+      const [reportRes, productsRes, statsRes, keysRes, scanStatusRes] = await Promise.all([
         getDailyReport(),
         getTodayProducts(),
         getStats(),
