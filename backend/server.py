@@ -457,6 +457,7 @@ async def get_saturation_overview(user: User = Depends(get_current_user)):
 
 @api_router.get("/saturation/niches")
 async def get_niche_saturation(user: User = Depends(get_current_user)):
+    check_feature_access(user.subscription_tier, "saturation_radar")
     products = await db.products.find({}, {"_id": 0}).to_list(100)
     
     niche_data = {}
