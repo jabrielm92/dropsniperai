@@ -7,7 +7,7 @@ import { Badge } from '../components/ui/badge';
 import { 
   Zap, LogOut, Settings, TrendingUp, TrendingDown, Minus,
   Target, AlertTriangle, Rocket, BarChart3, 
-  Package, Filter, Clock, ChevronRight, RefreshCw, Search
+  Package, Filter, Clock, ChevronRight, RefreshCw, Search, Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDailyReport, getTopProducts, getStats, seedData } from '../lib/api';
@@ -113,6 +113,13 @@ export default function Dashboard() {
             >
               <RefreshCw className={`w-5 h-5 ${seeding ? 'animate-spin' : ''}`} />
             </Button>
+            {user?.is_admin && (
+              <Link to="/admin">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" data-testid="admin-link">
+                  <Shield className="w-5 h-5" />
+                </Button>
+              </Link>
+            )}
             <Link to="/settings">
               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white">
                 <Settings className="w-5 h-5" />

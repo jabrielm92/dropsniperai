@@ -12,6 +12,7 @@ import hashlib
 import secrets
 from typing import List, Optional
 
+from pydantic import BaseModel
 from models import (
     User, UserCreate, UserLogin, UserResponse, TokenResponse,
     Product, ProductBrief, LaunchKit, AdCopy, VideoScript,
