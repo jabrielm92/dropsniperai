@@ -84,15 +84,14 @@ ProductScout AI is a full-stack AI-powered dropshipping product research SaaS pl
 
 ## Prioritized Backlog
 
-### P0 - Critical for Launch
-- [ ] OpenAI integration for AI-enhanced ad copy generation
-- [ ] Telegram Bot API integration for daily alerts
-- [ ] Stripe subscription integration for payments
-- [ ] Real web scraping implementation (replace mock data)
+### P0 - Ready to Enable (Just add API keys)
+- [ ] **Add OPENAI_API_KEY** → Enables AI Browser Agent (autonomous browsing)
+- [ ] **Add TELEGRAM_BOT_TOKEN** → Enables Telegram daily reports & alerts
+- [ ] **Add STRIPE_SECRET_KEY** → Enables subscription payments
 
 ### P1 - High Priority
+- [ ] Background job scheduling (cron for daily scans at 7AM)
 - [ ] Email notifications (SendGrid/Resend integration)
-- [ ] Background job scheduling (cron for daily scans)
 - [ ] User onboarding flow
 - [ ] Product boards/collections feature
 
