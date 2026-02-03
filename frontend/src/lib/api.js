@@ -83,12 +83,24 @@ export const getAiBrowserStatus = () => api.get('/scan/ai-browser/status');
 
 // Telegram
 export const getTelegramStatus = () => api.get('/telegram/status');
-export const connectTelegram = (chatId) => api.post('/telegram/connect', null, { params: { chat_id: chatId } });
+export const testTelegram = () => api.post('/telegram/test');
 export const sendTelegramReport = () => api.post('/telegram/send-report');
 export const sendLaunchKitTelegram = (kitId) => api.post(`/telegram/send-launch-kit/${kitId}`);
 
+// User Keys Management
+export const getUserKeys = () => api.get('/user/keys');
+export const updateUserKeys = (keys) => api.put('/user/keys', keys);
+export const deleteUserKey = (keyType) => api.delete(`/user/keys/${keyType}`);
+
 // Integration Status
 export const getIntegrationsStatus = () => api.get('/integrations/status');
+
+// Admin (requires admin role)
+export const getAdminStats = () => api.get('/admin/stats');
+export const getAdminUsers = (skip = 0, limit = 50) => api.get('/admin/users', { params: { skip, limit } });
+export const getAdminUserDetail = (userId) => api.get(`/admin/users/${userId}`);
+export const updateUserTier = (userId, tier) => api.put(`/admin/users/${userId}/tier`, null, { params: { tier } });
+export const getRecentActivity = (limit = 20) => api.get('/admin/recent-activity', { params: { limit } });
 
 // Health
 export const healthCheck = () => api.get('/health');
