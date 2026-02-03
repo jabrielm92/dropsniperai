@@ -329,36 +329,49 @@ export default function Dashboard() {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Button 
                 variant="outline" 
                 className="h-auto py-4 px-6 justify-start border-white/10 hover:border-primary/30 hover:bg-primary/5"
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate('/scanner')}
               >
-                <Filter className="w-5 h-5 mr-3 text-primary" />
+                <Target className="w-5 h-5 mr-3 text-primary" />
                 <div className="text-left">
-                  <p className="font-medium">Configure Filters</p>
-                  <p className="text-xs text-muted-foreground">Customize your criteria</p>
+                  <p className="font-medium">Run Scanner</p>
+                  <p className="text-xs text-muted-foreground">Scan all sources</p>
                 </div>
               </Button>
               <Button 
                 variant="outline" 
                 className="h-auto py-4 px-6 justify-start border-white/10 hover:border-blue-500/30 hover:bg-blue-500/5"
+                onClick={() => navigate('/competitors')}
               >
                 <Search className="w-5 h-5 mr-3 text-blue-500" />
                 <div className="text-left">
-                  <p className="font-medium">Manual Search</p>
-                  <p className="text-xs text-muted-foreground">Search specific products</p>
+                  <p className="font-medium">Competitor Spy</p>
+                  <p className="text-xs text-muted-foreground">Monitor stores</p>
                 </div>
               </Button>
               <Button 
                 variant="outline" 
                 className="h-auto py-4 px-6 justify-start border-white/10 hover:border-yellow-500/30 hover:bg-yellow-500/5"
+                onClick={() => navigate('/saturation')}
               >
                 <BarChart3 className="w-5 h-5 mr-3 text-yellow-500" />
                 <div className="text-left">
-                  <p className="font-medium">View Analytics</p>
-                  <p className="text-xs text-muted-foreground">Track your performance</p>
+                  <p className="font-medium">Saturation Radar</p>
+                  <p className="text-xs text-muted-foreground">Find opportunities</p>
+                </div>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 px-6 justify-start border-white/10 hover:border-purple-500/30 hover:bg-purple-500/5"
+                onClick={() => navigate('/settings')}
+              >
+                <Filter className="w-5 h-5 mr-3 text-purple-500" />
+                <div className="text-left">
+                  <p className="font-medium">Configure Filters</p>
+                  <p className="text-xs text-muted-foreground">Customize criteria</p>
                 </div>
               </Button>
             </div>
