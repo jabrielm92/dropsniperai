@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from models import User
 from routes.deps import get_db, get_current_user
+from routes.tiers import check_feature_access
 
 router = APIRouter(prefix="/trends", tags=["trends"])
 
@@ -21,6 +22,7 @@ async def get_rising_trends(
     user: User = Depends(get_current_user)
 ):
     """Get rising search trends from Google Trends"""
+    check_feature_access(user.subscription_tier, "google_trends")
     try:
         pytrends = get_pytrends()
         
