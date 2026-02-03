@@ -91,3 +91,14 @@ See `/app/DEPLOYMENT_GUIDE.md` for click-by-click instructions.
 
 ## Last Updated
 2026-02-03 - P0 & P1 completed
+
+## AI Scanning Implementation
+- **With OpenAI Key**: Uses `browser-use` library to autonomously browse TikTok, Amazon, AliExpress, Google Trends
+- **Without Key**: Falls back to sample/mock data
+- **Multi-tenant**: Each user provides their own OpenAI key via Settings page
+- **Endpoint**: `GET /api/scan/status` returns current user's AI capability status
+
+## Telegram Integration
+- Fully implemented via user's own bot token
+- Endpoints: `/api/telegram/test`, `/api/telegram/send-report`
+- Features: Daily reports, product alerts, competitor alerts, launch kit summaries
