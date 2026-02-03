@@ -25,16 +25,18 @@ class AIBrowserAgent:
     """
     AI-powered browser agent that autonomously browses websites.
     Replicates the ClawdBot approach from the original X post.
+    Uses user's own OpenAI API key for multi-tenant operation.
     """
     
-    def __init__(self):
-        self.openai_key = os.getenv("OPENAI_API_KEY")
+    def __init__(self, user_openai_key: str = None):
+        """Initialize with user's API key for multi-tenant support"""
+        self.openai_key = user_openai_key or os.getenv("OPENAI_API_KEY")
         self.is_configured = bool(self.openai_key) and BROWSER_USE_AVAILABLE
         
     def _get_llm(self):
         """Get the LLM instance for browser-use"""
         if not self.openai_key:
-            raise ValueError("OPENAI_API_KEY not configured")
+            raise ValueError("OpenAI API key not configured. Add your key in Settings.")
         return ChatOpenAI(model="gpt-4o", api_key=self.openai_key)
     
     async def scan_tiktok_trending(self) -> Dict[str, Any]:
