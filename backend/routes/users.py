@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from models import User, UserResponse
 from routes.deps import get_db, get_current_user
+from routes.tiers import get_all_features_status, get_tier_limits, TIER_LEVELS
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -52,3 +53,13 @@ async def delete_user_key(key_type: str, user: User = Depends(get_current_user))
     
     await db.users.update_one({"id": user.id}, {"$set": {key_type: None}})
     return {"success": True, "deleted": key_type}
+
+@router.get("/tier-status")
+async def get_tier_status(user: User = Depends(get_current_user)):
+    """Get user's tier status and available features"""
+    return {
+        "current_tier": user.subscription_tier,
+        "tier_level": TIER_LEVELS.get(user.subscription_tier, 0),
+        "limits": get_tier_limits(user.subscription_tier),
+        "features": get_all_features_status(user.subscription_tier)
+    }
