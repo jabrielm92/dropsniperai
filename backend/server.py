@@ -310,6 +310,18 @@ async def run_full_scan(user: User = Depends(get_current_user)):
         }
         await db.daily_products.insert_one(product_doc)
     
+    # Send Telegram notification if configured
+    if user.telegram_bot_token and user.telegram_chat_id:
+        from services.telegram_bot import TelegramBot
+        bot = TelegramBot()
+        bot.bot_token = user.telegram_bot_token
+        bot.is_configured = True
+        bot.base_url = f"https://api.telegram.org/bot{user.telegram_bot_token}"
+        await bot.send_message(
+            user.telegram_chat_id,
+            f"✅ <b>Scan Complete!</b>\n\nFound {results.get('total_products', 0)} trending products.\n\n📊 Check your dashboard for details."
+        )
+    
     return results
 
 @api_router.get("/scan/sources/{source}")
