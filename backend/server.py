@@ -667,25 +667,22 @@ async def send_telegram_report(user: User = Depends(get_current_user)):
         "fully_validated": len(products),
         "ready_to_launch": len(products),
         "passed_filters": 23,
-        "fully_validated": 7,
+        "fully_validated": len(products),
         "ready_to_launch": len(products),
         "top_products": [
             {
-                "name": p["name"],
-                "score": p["overall_score"],
-                "source_cost": p["source_cost"],
-                "sell_price": p["recommended_price"],
-                "margin": p["margin_percent"],
-                "fb_ads": p["active_fb_ads"],
-                "trend_direction": p["trend_direction"],
-                "trend_percent": p["trend_percent"]
+                "name": p.get("name", "Unknown"),
+                "score": p.get("trend_score", p.get("overall_score", 0)),
+                "source_cost": p.get("source_cost", 0),
+                "sell_price": p.get("recommended_price", 0),
+                "margin": p.get("margin_percent", 0),
+                "fb_ads": p.get("estimated_views", 0) // 100000,
+                "trend_direction": "up" if p.get("trend_score", 0) > 70 else "stable",
+                "trend_percent": p.get("trend_score", 0)
             }
             for p in products
         ],
-        "alerts": [
-            {"product": "Galaxy Projector", "message": "Competition ↑ 15 new ads"},
-            {"product": "Posture Corrector", "message": "Search volume declining 12%"}
-        ]
+        "alerts": []
     }
     
     result = await user_bot.send_daily_report(user.telegram_chat_id, report_data)
