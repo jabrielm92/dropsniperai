@@ -398,10 +398,25 @@ async def get_scan_status(user: User = Depends(get_current_user)):
     """Get scanning capability status for current user"""
     has_key = bool(user.openai_api_key)
     
+    # Get last scan time
+    last_scan = await db.scan_history.find_one(
+        {"user_id": user.id},
+        {"_id": 0, "created_at": 1},
+        sort=[("created_at", -1)]
+    )
+    
+    # Calculate next scheduled scan based on tier
+    from services.scheduler import TIER_SCAN_FREQUENCY
+    frequency = TIER_SCAN_FREQUENCY.get(user.subscription_tier, 24)
+    
     return {
         "ai_scanning_available": has_key,
         "openai_key_configured": has_key,
+        "telegram_configured": bool(user.telegram_bot_token and user.telegram_chat_id),
         "scan_mode": "ai_powered" if has_key else "disabled",
+        "last_scan": last_scan.get("created_at") if last_scan else None,
+        "scan_frequency_hours": frequency,
+        "next_report": "7:00 AM Eastern daily",
         "message": "AI scanning ready" if has_key else "Add OpenAI API key in Settings to enable scanning"
     }
 
