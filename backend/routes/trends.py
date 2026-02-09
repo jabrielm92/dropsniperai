@@ -4,10 +4,15 @@ from pytrends.request import TrendReq
 import asyncio
 from typing import List, Optional
 from datetime import datetime, timezone
+from pydantic import BaseModel
 
 from models import User
 from routes.deps import get_db, get_current_user
 from routes.tiers import check_feature_access
+
+class AnalyzeProductsRequest(BaseModel):
+    product_names: List[str]
+    geo: str = "US"
 
 router = APIRouter(prefix="/trends", tags=["trends"])
 
@@ -163,14 +168,15 @@ async def get_related_queries(
 
 @router.post("/analyze-products")
 async def analyze_products_trends(
-    product_names: List[str],
-    geo: str = "US",
+    body: AnalyzeProductsRequest,
     user: User = Depends(get_current_user)
 ):
     """Analyze Google Trends for multiple product names"""
     check_feature_access(user.subscription_tier, "google_trends")
+    product_names = body.product_names
+    geo = body.geo
     results = []
-    
+
     for name in product_names[:5]:  # Limit to 5 to avoid rate limiting
         try:
             pytrends = get_pytrends()

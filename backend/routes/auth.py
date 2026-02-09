@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone, timedelta
 import jwt
-import hashlib
+from passlib.context import CryptContext
 import os
 
 from models import User, UserCreate, UserLogin, UserResponse, TokenResponse
@@ -13,8 +13,17 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Admin email from environment
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'jabriel@arisolutionsinc.com')
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # Support legacy SHA256 hashes for existing users
+    import hashlib
+    if len(hashed_password) == 64 and all(c in '0123456789abcdef' for c in hashed_password):
+        return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+    return pwd_context.verify(plain_password, hashed_password)
 
 def create_token(user_id: str, secret: str) -> str:
     payload = {
@@ -62,8 +71,13 @@ async def login(data: UserLogin):
     from routes.deps import JWT_SECRET
     
     user_doc = await db.users.find_one({"email": data.email}, {"_id": 0})
-    if not user_doc or user_doc['password_hash'] != hash_password(data.password):
+    if not user_doc or not verify_password(data.password, user_doc['password_hash']):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Migrate legacy SHA256 hash to bcrypt on successful login
+    if len(user_doc['password_hash']) == 64 and all(c in '0123456789abcdef' for c in user_doc['password_hash']):
+        new_hash = hash_password(data.password)
+        await db.users.update_one({"id": user_doc['id']}, {"$set": {"password_hash": new_hash}})
     
     token = create_token(user_doc['id'], JWT_SECRET)
     return TokenResponse(

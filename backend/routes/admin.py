@@ -102,23 +102,23 @@ async def get_admin_user_detail(user_id: str, admin: User = Depends(require_admi
 @router.post("/users")
 async def create_admin_user(data: CreateUserRequest, admin: User = Depends(require_admin)):
     """Create a new user (admin only)"""
-    import hashlib
+    from routes.auth import hash_password
     import uuid
     db = get_db()
-    
+
     existing = await db.users.find_one({"email": data.email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     valid_tiers = ["free", "sniper", "elite", "agency", "enterprise"]
     if data.subscription_tier not in valid_tiers:
         raise HTTPException(status_code=400, detail=f"Invalid tier. Must be one of: {valid_tiers}")
-    
+
     user_doc = {
         "id": str(uuid.uuid4()),
         "email": data.email,
         "name": data.name,
-        "password_hash": hashlib.sha256(data.password.encode()).hexdigest(),
+        "password_hash": hash_password(data.password),
         "subscription_tier": data.subscription_tier,
         "is_admin": False,
         "created_at": datetime.now(timezone.utc).isoformat()

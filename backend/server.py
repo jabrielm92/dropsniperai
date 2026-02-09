@@ -91,23 +91,10 @@ api_router.include_router(payments_router)
 api_router.include_router(contact_router)
 api_router.include_router(verification_router)
 
-# ========== AUTH ME ENDPOINT ==========
-@api_router.get("/auth/me", response_model=UserResponse)
-async def get_me(user: User = Depends(get_current_user)):
-    return UserResponse(
-        id=user.id, 
-        email=user.email, 
-        name=user.name, 
-        subscription_tier=user.subscription_tier, 
-        is_admin=user.is_admin,
-        telegram_chat_id=user.telegram_chat_id,
-        has_openai_key=bool(user.openai_api_key),
-        has_telegram_token=bool(user.telegram_bot_token)
-    )
-
 # ========== LAUNCH KIT ROUTES ==========
 @api_router.post("/launch-kit/{product_id}", response_model=LaunchKit)
 async def generate_launch_kit(product_id: str, user: User = Depends(get_current_user)):
+    check_feature_access(user.subscription_tier, "launch_kit")
     product = await db.products.find_one({"id": product_id}, {"_id": 0})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -347,36 +334,6 @@ async def scan_single_source(source: str, user: User = Depends(get_current_user)
         raise HTTPException(status_code=500, detail=result.get("error", "Scan failed"))
     
     return result
-    from services.ai_browser_agent import create_agent_for_user, BROWSER_USE_AVAILABLE
-    
-    # AI-powered scan if user has key
-    if user.openai_api_key and BROWSER_USE_AVAILABLE:
-        agent = create_agent_for_user(user.openai_api_key)
-        if source == "tiktok":
-            result = await agent.scan_tiktok_trending()
-        elif source == "amazon":
-            result = await agent.scan_amazon_movers()
-        elif source == "aliexpress":
-            result = await agent.scan_aliexpress_trending()
-        elif source == "google_trends":
-            result = await agent.scan_google_trends()
-        else:
-            raise HTTPException(status_code=400, detail=f"Unknown source: {source}")
-        return {"source": source, "result": result, "scan_mode": "ai_powered"}
-    
-    # Fallback to mock data
-    if source == "tiktok":
-        products = await scout_engine.tiktok.scan_trending()
-    elif source == "amazon":
-        products = await scout_engine.amazon.scan_movers_shakers()
-    elif source == "aliexpress":
-        products = await scout_engine.aliexpress.scan_trending()
-    elif source == "google_trends":
-        products = await scout_engine.google_trends.scan_rising_terms()
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown source: {source}")
-    
-    return {"source": source, "products": products, "count": len(products), "scan_mode": "sample_data"}
 
 @api_router.post("/scan/analyze/{product_name}")
 async def analyze_product(product_name: str, user: User = Depends(get_current_user)):
@@ -418,6 +375,47 @@ async def get_scan_status(user: User = Depends(get_current_user)):
         "scan_frequency_hours": frequency,
         "next_report": "7:00 AM Eastern daily",
         "message": "AI scanning ready" if has_key else "Add OpenAI API key in Settings to enable scanning"
+    }
+
+# ========== AI BROWSER SCAN ENDPOINTS ==========
+@api_router.post("/scan/ai-browser/full")
+async def run_ai_browser_full_scan(user: User = Depends(get_current_user)):
+    """Run full AI browser scan (delegates to regular AI scan)"""
+    if not user.openai_api_key:
+        raise HTTPException(status_code=400, detail="OpenAI API key required")
+    from services.ai_scanner import create_scanner
+    scanner = create_scanner(user.openai_api_key)
+    filters = user.filters if user.filters else {}
+    results = await scanner.run_full_scan(filters)
+    if not results.get("success"):
+        raise HTTPException(status_code=500, detail=results.get("error", "Scan failed"))
+    return results
+
+@api_router.post("/scan/ai-browser/{source}")
+async def run_ai_browser_source_scan(source: str, user: User = Depends(get_current_user)):
+    """Run AI browser scan for a single source"""
+    if not user.openai_api_key:
+        raise HTTPException(status_code=400, detail="OpenAI API key required")
+    valid_sources = ["tiktok", "amazon", "aliexpress", "google_trends", "competitor", "meta-ads"]
+    if source not in valid_sources:
+        raise HTTPException(status_code=400, detail=f"Invalid source. Must be one of: {valid_sources}")
+    from services.ai_scanner import create_scanner
+    scanner = create_scanner(user.openai_api_key)
+    filters = user.filters if user.filters else {}
+    result = await scanner.scan_source(source, filters)
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Scan failed"))
+    return result
+
+@api_router.get("/scan/ai-browser/status")
+async def get_ai_browser_status(user: User = Depends(get_current_user)):
+    """Get AI browser agent status"""
+    return {
+        "browser_use_available": False,
+        "openai_key_configured": bool(user.openai_api_key),
+        "is_ready": bool(user.openai_api_key),
+        "scan_mode": "ai_powered" if user.openai_api_key else "disabled",
+        "message": "AI scanning ready" if user.openai_api_key else "Add OpenAI API key in Settings"
     }
 
 # ========== COMPETITOR SPY ==========
@@ -610,6 +608,7 @@ async def get_telegram_status(user: User = Depends(get_current_user)):
 
 @api_router.post("/telegram/test")
 async def test_telegram(user: User = Depends(get_current_user)):
+    check_feature_access(user.subscription_tier, "telegram_alerts")
     if not user.telegram_bot_token:
         raise HTTPException(status_code=400, detail="Add your Telegram Bot Token first")
     if not user.telegram_chat_id:
@@ -635,6 +634,7 @@ async def test_telegram(user: User = Depends(get_current_user)):
 
 @api_router.post("/telegram/send-report")
 async def send_telegram_report(user: User = Depends(get_current_user)):
+    check_feature_access(user.subscription_tier, "telegram_alerts")
     if not user.telegram_bot_token or not user.telegram_chat_id:
         raise HTTPException(status_code=400, detail="Configure your Telegram bot token and chat ID first")
     
@@ -663,9 +663,6 @@ async def send_telegram_report(user: User = Depends(get_current_user)):
     
     report_data = {
         "products_scanned": len(products) * 500,
-        "passed_filters": len(products) * 5,
-        "fully_validated": len(products),
-        "ready_to_launch": len(products),
         "passed_filters": 23,
         "fully_validated": len(products),
         "ready_to_launch": len(products),
@@ -687,6 +684,30 @@ async def send_telegram_report(user: User = Depends(get_current_user)):
     
     result = await user_bot.send_daily_report(user.telegram_chat_id, report_data)
     return result
+
+@api_router.post("/telegram/send-launch-kit/{kit_id}")
+async def send_launch_kit_telegram(kit_id: str, user: User = Depends(get_current_user)):
+    """Send a launch kit summary via Telegram"""
+    check_feature_access(user.subscription_tier, "telegram_alerts")
+    if not user.telegram_bot_token or not user.telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Configure your Telegram bot token and chat ID first")
+
+    kit = await db.launch_kits.find_one({"id": kit_id, "user_id": user.id}, {"_id": 0})
+    if not kit:
+        raise HTTPException(status_code=404, detail="Launch kit not found")
+
+    from services.telegram_bot import TelegramBot
+    user_bot = TelegramBot()
+    user_bot.bot_token = user.telegram_bot_token
+    user_bot.is_configured = True
+    user_bot.base_url = f"https://api.telegram.org/bot{user.telegram_bot_token}"
+
+    result = await user_bot.send_launch_kit_summary(user.telegram_chat_id, kit)
+    if not result.get("success"):
+        detail = result.get("detail", result.get("error", "Failed to send message"))
+        raise HTTPException(status_code=400, detail=detail)
+
+    return {"success": True, "message": "Launch kit sent to Telegram!"}
 
 # ========== INTEGRATIONS STATUS ==========
 @api_router.get("/integrations/status")
