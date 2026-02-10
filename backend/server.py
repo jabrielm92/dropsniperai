@@ -25,8 +25,11 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# JWT Config
-JWT_SECRET = os.environ.get('JWT_SECRET', secrets.token_hex(32))
+# JWT Config - require stable secret to prevent logout on redeploy
+JWT_SECRET = os.environ.get('JWT_SECRET')
+if not JWT_SECRET:
+    logger.warning("JWT_SECRET not set! Generating temporary secret - users will be logged out on restart. Set JWT_SECRET env var for production.")
+    JWT_SECRET = secrets.token_hex(32)
 
 # Initialize route dependencies
 from routes.deps import init_db, get_current_user, get_db
@@ -195,21 +198,29 @@ async def get_daily_report(user: User = Depends(get_current_user)):
     report = await db.daily_reports.find_one({"user_id": user.id, "date": today}, {"_id": 0})
     
     if not report:
-        products = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).limit(5).to_list(5)
-        top_ids = [p['id'] for p in products]
-        
+        # Get real product data for this user
+        daily_prods = await db.daily_products.find(
+            {"user_id": user.id, "scan_date": today, "is_active": True}, {"_id": 0}
+        ).sort("overall_score", -1).limit(5).to_list(5)
+
+        if not daily_prods:
+            daily_prods = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).limit(5).to_list(5)
+
+        top_ids = [p.get('id', '') for p in daily_prods]
+
+        # Get real scan stats
+        total_scanned = await db.daily_products.count_documents({"user_id": user.id, "scan_date": today})
+        total_scans = await db.scan_history.count_documents({"user_id": user.id, "scan_date": today})
+
         report = DailyReport(
             user_id=user.id,
             date=today,
-            products_scanned=2847,
-            passed_filters=23,
-            fully_validated=7,
+            products_scanned=total_scanned or len(daily_prods),
+            passed_filters=len(daily_prods),
+            fully_validated=len(daily_prods),
             ready_to_launch=len(top_ids),
             top_products=top_ids,
-            alerts=[
-                {"type": "competition", "product": "Galaxy Projector", "message": "Competition ↑ 15 new ads detected"},
-                {"type": "trend", "product": "Posture Corrector", "message": "Search volume declining 12%"}
-            ]
+            alerts=[]
         )
         doc = report.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
@@ -456,7 +467,7 @@ async def get_ai_browser_status(user: User = Depends(get_current_user)):
 # ========== COMPETITOR SPY ==========
 from services.competitor_spy import (
     CompetitorStore, CompetitorAlert, CompetitorProduct,
-    generate_mock_competitor_data, detect_store_changes
+    scrape_shopify_store, detect_store_changes
 )
 
 @api_router.post("/competitors")
@@ -477,7 +488,7 @@ async def add_competitor(store_url: str, user: User = Depends(get_current_user))
     if existing:
         raise HTTPException(status_code=400, detail="Already monitoring this store")
     
-    store_data = generate_mock_competitor_data(store_url)
+    store_data = await scrape_shopify_store(store_url)
     
     competitor = CompetitorStore(
         user_id=user.id,
@@ -525,7 +536,7 @@ async def scan_competitor(competitor_id: str, user: User = Depends(get_current_u
     if not competitor:
         raise HTTPException(status_code=404, detail="Competitor not found")
     
-    store_data = generate_mock_competitor_data(competitor["store_url"])
+    store_data = await scrape_shopify_store(competitor["store_url"])
     old_products = competitor.get("products_snapshot", [])
     changes = detect_store_changes(old_products, store_data["products"])
     
@@ -700,9 +711,12 @@ async def send_telegram_report(user: User = Depends(get_current_user)):
     if not products:
         raise HTTPException(status_code=400, detail="No products found. Run a scan first!")
 
+    # Get real scan stats
+    today_product_count = await db.daily_products.count_documents({"user_id": user.id, "scan_date": today})
+
     report_data = {
-        "products_scanned": len(products) * 500,
-        "passed_filters": 23,
+        "products_scanned": today_product_count or len(products),
+        "passed_filters": len(products),
         "fully_validated": len(products),
         "ready_to_launch": len(products),
         "top_products": [
