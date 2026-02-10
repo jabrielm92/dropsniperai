@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -17,11 +17,7 @@ export default function Products() {
   const [view, setView] = useState('today'); // today | history
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetchProducts();
-  }, [view]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
       const res = view === 'today'
@@ -35,7 +31,11 @@ export default function Products() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [view]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const filtered = products.filter(p =>
     !searchQuery || p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
