@@ -23,9 +23,10 @@ stripe>=8.0.0
 pydantic>=2.5.0
 email-validator>=2.1.0
 
-# HTTP Client
+# HTTP Client & Scraping
 httpx>=0.26.0
 requests>=2.31.0
+beautifulsoup4>=4.12.0
 
 # Google Trends
 pytrends>=4.9.0

@@ -1,240 +1,592 @@
 """
-Product Scout Services - Data Scrapers
-These are structured for real scraping but use simulated data.
-Replace with actual scraping logic when deploying.
+Product Scout Services - Real Web Scrapers
+Scrapes Amazon, AliExpress, TikTok Creative Center, Meta Ad Library, and Google Trends
+using httpx + BeautifulSoup for lightweight HTTP-based scraping.
 """
 import asyncio
-import random
+import logging
+import re
+import json
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
-import hashlib
+from urllib.parse import quote_plus, urlencode
+
+import httpx
+from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
+
+# Rotating user agents to avoid blocks
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+]
+
+def _get_headers(idx: int = 0) -> Dict[str, str]:
+    ua = USER_AGENTS[idx % len(USER_AGENTS)]
+    return {
+        "User-Agent": ua,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+    }
+
 
 class TikTokScanner:
-    """Scans TikTok for trending product hashtags"""
-    
-    TRENDING_HASHTAGS = [
-        "tiktokmademebuyit", "amazonfinds", "viralproducts", 
-        "musthave2026", "gadgettok", "homeessentials",
-        "beautyhacks", "cleaningtok", "organizationtok"
-    ]
-    
+    """Scrapes TikTok Creative Center for trending products and hashtags"""
+
+    CREATIVE_CENTER_URL = "https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en"
+    # TikTok Creative Center has internal API endpoints
+    HASHTAG_API = "https://ads.tiktok.com/creative_radar_api/v1/popular_trend/hashtag/list"
+
     async def scan_trending(self, niche: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Scan TikTok for trending products in hashtags with 10M+ views"""
-        # Simulated data - replace with actual TikTok scraping
+        """Scan TikTok Creative Center for trending hashtags related to products"""
         products = []
-        
-        sample_products = [
-            {"name": "Mini Portable Blender", "views": 47000000, "hashtag": "#tiktokmademebuyit"},
-            {"name": "LED Strip Lights", "views": 32000000, "hashtag": "#roomdecor"},
-            {"name": "Cloud Slippers", "views": 28000000, "hashtag": "#comfortfinds"},
-            {"name": "Magnetic Phone Mount", "views": 19000000, "hashtag": "#carmusthaves"},
-            {"name": "Ice Roller Face Massager", "views": 15000000, "hashtag": "#skincareessentials"},
-            {"name": "Sunset Projection Lamp", "views": 41000000, "hashtag": "#aestheticroom"},
-            {"name": "Smart Water Bottle", "views": 12000000, "hashtag": "#hydrationreminder"},
-            {"name": "Portable Neck Massager", "views": 22000000, "hashtag": "#painrelief"},
+        product_hashtags = [
+            "tiktokmademebuyit", "amazonfinds", "viralproducts",
+            "musthave", "gadgettok", "homeessentials", "cleaningtok",
         ]
-        
-        for p in sample_products:
-            if p["views"] >= 10000000:  # 10M+ views filter
-                products.append({
-                    "source": "tiktok",
-                    "name": p["name"],
-                    "trend_data": {
-                        "views": p["views"],
-                        "hashtag": p["hashtag"],
-                        "growth_rate": random.randint(50, 400)
+
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            # Try Creative Center API for trending hashtags
+            try:
+                resp = await client.get(
+                    self.HASHTAG_API,
+                    params={
+                        "page": 1,
+                        "limit": 20,
+                        "period": 7,  # last 7 days
+                        "country_code": "US",
+                        "sort_by": "popular",
                     },
-                    "discovered_at": datetime.now(timezone.utc).isoformat()
-                })
-        
-        return products
+                    headers={
+                        **_get_headers(0),
+                        "Referer": self.CREATIVE_CENTER_URL,
+                    },
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for item in data.get("data", {}).get("list", []):
+                        name = item.get("hashtag_name", "")
+                        # Filter for product-related hashtags
+                        if any(kw in name.lower() for kw in ["buy", "find", "product", "gadget", "must", "hack", "deal"]):
+                            products.append({
+                                "source": "tiktok",
+                                "name": name.replace("#", "").title(),
+                                "trend_data": {
+                                    "hashtag": f"#{name}",
+                                    "views": item.get("publish_cnt", 0),
+                                    "growth_rate": item.get("trend", 0),
+                                    "video_count": item.get("video_cnt", 0),
+                                },
+                                "discovered_at": datetime.now(timezone.utc).isoformat(),
+                            })
+            except Exception as e:
+                logger.warning(f"TikTok Creative Center API failed: {e}")
+
+            # Fallback: scrape TikTok search for product hashtags
+            if not products:
+                for tag in product_hashtags[:4]:
+                    try:
+                        resp = await client.get(
+                            f"https://www.tiktok.com/tag/{tag}",
+                            headers=_get_headers(1),
+                        )
+                        if resp.status_code == 200:
+                            soup = BeautifulSoup(resp.text, "html.parser")
+                            # Extract view count from meta tags
+                            meta = soup.find("meta", {"property": "og:description"})
+                            view_text = meta.get("content", "") if meta else ""
+                            views = _parse_view_count(view_text)
+
+                            # Extract product names from video descriptions via JSON-LD
+                            scripts = soup.find_all("script", {"type": "application/ld+json"})
+                            for script in scripts[:3]:
+                                try:
+                                    ld = json.loads(script.string or "{}")
+                                    desc = ld.get("description", "")
+                                    if desc and len(desc) > 10:
+                                        products.append({
+                                            "source": "tiktok",
+                                            "name": _extract_product_name(desc, tag),
+                                            "trend_data": {
+                                                "hashtag": f"#{tag}",
+                                                "views": views,
+                                                "growth_rate": 0,
+                                            },
+                                            "discovered_at": datetime.now(timezone.utc).isoformat(),
+                                        })
+                                except (json.JSONDecodeError, AttributeError):
+                                    pass
+                        await asyncio.sleep(1)  # Rate limit
+                    except Exception as e:
+                        logger.warning(f"TikTok tag scrape failed for #{tag}: {e}")
+
+        return products[:8]
 
 
 class AmazonScanner:
-    """Scans Amazon Movers & Shakers"""
-    
-    CATEGORIES = [
-        "Electronics", "Home & Kitchen", "Beauty", "Sports & Outdoors",
-        "Toys & Games", "Health & Personal Care", "Pet Supplies"
-    ]
-    
+    """Scrapes Amazon Movers & Shakers for trending products"""
+
+    MOVERS_URLS = {
+        "Electronics": "https://www.amazon.com/gp/movers-and-shakers/electronics",
+        "Home & Kitchen": "https://www.amazon.com/gp/movers-and-shakers/home-garden",
+        "Beauty": "https://www.amazon.com/gp/movers-and-shakers/beauty",
+        "Sports & Outdoors": "https://www.amazon.com/gp/movers-and-shakers/sporting-goods",
+        "Health & Personal Care": "https://www.amazon.com/gp/movers-and-shakers/hpc",
+        "Pet Supplies": "https://www.amazon.com/gp/movers-and-shakers/pet-supplies",
+    }
+
     async def scan_movers_shakers(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Scan Amazon Movers & Shakers for trending products"""
+        """Scrape Amazon Movers & Shakers for products with biggest rank increases"""
         products = []
-        
-        sample_products = [
-            {"name": "Wireless Earbuds Pro", "rank_change": 85, "category": "Electronics", "price": 29.99},
-            {"name": "Air Fryer Liner Set", "rank_change": 120, "category": "Home & Kitchen", "price": 12.99},
-            {"name": "Vitamin C Serum", "rank_change": 95, "category": "Beauty", "price": 18.99},
-            {"name": "Resistance Bands Set", "rank_change": 78, "category": "Sports & Outdoors", "price": 15.99},
-            {"name": "Pet Hair Remover", "rank_change": 150, "category": "Pet Supplies", "price": 9.99},
-            {"name": "LED Desk Lamp", "rank_change": 65, "category": "Home & Kitchen", "price": 24.99},
-            {"name": "Posture Corrector Belt", "rank_change": 110, "category": "Health & Personal Care", "price": 19.99},
-        ]
-        
-        for p in sample_products:
-            if category is None or p["category"] == category:
-                products.append({
-                    "source": "amazon",
-                    "name": p["name"],
-                    "trend_data": {
-                        "rank_change": p["rank_change"],
-                        "category": p["category"],
-                        "current_price": p["price"]
-                    },
-                    "discovered_at": datetime.now(timezone.utc).isoformat()
-                })
-        
-        return products
+        urls = {}
+
+        if category and category in self.MOVERS_URLS:
+            urls = {category: self.MOVERS_URLS[category]}
+        else:
+            # Pick top 3 categories to avoid too many requests
+            for cat in ["Electronics", "Home & Kitchen", "Beauty"]:
+                urls[cat] = self.MOVERS_URLS[cat]
+
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            for cat_name, url in urls.items():
+                try:
+                    resp = await client.get(url, headers=_get_headers(2))
+                    if resp.status_code == 200:
+                        soup = BeautifulSoup(resp.text, "html.parser")
+                        items = soup.select("#zg-ordered-list li, .zg-item-immersion")
+
+                        for item in items[:5]:  # Top 5 per category
+                            name_el = item.select_one(".zg-text-center-align, ._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y, .p13n-sc-truncate, a[href*='/dp/']")
+                            price_el = item.select_one(".p13n-sc-price, ._cDEzb_p13n-sc-price_3mJ9Z, .a-price .a-offscreen")
+                            rank_el = item.select_one(".zg-badge-text, ._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y")
+
+                            name = name_el.get_text(strip=True) if name_el else None
+                            if not name or len(name) < 3:
+                                continue
+
+                            price_text = price_el.get_text(strip=True) if price_el else "$0"
+                            price = _parse_price(price_text)
+
+                            # Try to extract rank change percentage
+                            rank_change = 0
+                            percent_el = item.select_one(".zg-percent-change, .a-size-small")
+                            if percent_el:
+                                try:
+                                    rank_change = int(re.sub(r'[^\d]', '', percent_el.get_text(strip=True)) or 0)
+                                except ValueError:
+                                    pass
+
+                            products.append({
+                                "source": "amazon",
+                                "name": name[:80],  # Truncate long names
+                                "trend_data": {
+                                    "rank_change": rank_change,
+                                    "category": cat_name,
+                                    "current_price": price,
+                                },
+                                "discovered_at": datetime.now(timezone.utc).isoformat(),
+                            })
+
+                    await asyncio.sleep(1)
+                except Exception as e:
+                    logger.warning(f"Amazon scrape failed for {cat_name}: {e}")
+
+        return products[:15]
 
 
 class AliExpressScanner:
-    """Scans AliExpress for trending products"""
-    
+    """Scrapes AliExpress for trending/hot products with supplier data"""
+
+    SEARCH_URL = "https://www.aliexpress.com/w/wholesale-{query}.html"
+    HOT_URL = "https://www.aliexpress.com/popular/{category}.html"
+
     async def scan_trending(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Scan AliExpress trending/hot products"""
+        """Scrape AliExpress for hot products with supplier pricing"""
         products = []
-        
-        sample_products = [
-            {"name": "Mini Projector HD", "orders": 15000, "price": 45.00, "rating": 4.7},
-            {"name": "Wireless Charging Pad", "orders": 28000, "price": 8.50, "rating": 4.8},
-            {"name": "Portable Fan Necklace", "orders": 32000, "price": 6.20, "rating": 4.6},
-            {"name": "LED Book Light", "orders": 18000, "price": 11.40, "rating": 4.5},
-            {"name": "Silicone Kitchen Tools Set", "orders": 22000, "price": 12.80, "rating": 4.7},
-            {"name": "Bluetooth Sleep Headband", "orders": 9500, "price": 14.20, "rating": 4.4},
-            {"name": "Electric Lunch Box", "orders": 12000, "price": 25.00, "rating": 4.6},
-            {"name": "Magnetic Cable Organizer", "orders": 45000, "price": 3.50, "rating": 4.8},
+        search_terms = [
+            "trending gadgets 2026", "viral tiktok products",
+            "dropshipping hot products", "new arrivals bestseller",
         ]
-        
-        for p in sample_products:
-            products.append({
-                "source": "aliexpress",
-                "name": p["name"],
-                "trend_data": {
-                    "orders_30d": p["orders"],
-                    "price": p["price"],
-                    "rating": p["rating"],
-                    "order_velocity": p["orders"] / 30  # orders per day
-                },
-                "discovered_at": datetime.now(timezone.utc).isoformat()
-            })
-        
-        return products
+        if category:
+            search_terms = [f"{category} bestseller", f"{category} trending"]
+
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            for term in search_terms[:2]:
+                try:
+                    url = f"https://www.aliexpress.com/w/wholesale-{quote_plus(term)}.html"
+                    params = {"SortType": "total_tranpro_desc"}  # Sort by orders
+                    resp = await client.get(url, params=params, headers=_get_headers(3))
+
+                    if resp.status_code == 200:
+                        soup = BeautifulSoup(resp.text, "html.parser")
+
+                        # AliExpress renders product data in script tags
+                        for script in soup.find_all("script"):
+                            text = script.string or ""
+                            if "window._dida_config_" in text or "runParams" in text:
+                                # Extract product JSON data
+                                json_matches = re.findall(r'"title":"([^"]{5,80})"', text)
+                                price_matches = re.findall(r'"minPrice":"?(\d+\.?\d*)"?', text)
+                                order_matches = re.findall(r'"tradeCount":"?(\d+)"?', text)
+                                rating_matches = re.findall(r'"starRating":"?(\d+\.?\d*)"?', text)
+
+                                for i in range(min(len(json_matches), 8)):
+                                    name = json_matches[i]
+                                    price = float(price_matches[i]) if i < len(price_matches) else 0
+                                    orders = int(order_matches[i]) if i < len(order_matches) else 0
+                                    rating = float(rating_matches[i]) if i < len(rating_matches) else 0
+
+                                    if price > 0 and name:
+                                        products.append({
+                                            "source": "aliexpress",
+                                            "name": name,
+                                            "trend_data": {
+                                                "orders_30d": orders,
+                                                "price": price,
+                                                "rating": rating,
+                                                "order_velocity": round(orders / 30, 1) if orders else 0,
+                                            },
+                                            "discovered_at": datetime.now(timezone.utc).isoformat(),
+                                        })
+
+                        # Alternative: parse product cards directly
+                        if not products:
+                            cards = soup.select(".list--gallery--C2f2tvm .multi--container--1UZxxHY, .search-card-item")
+                            for card in cards[:8]:
+                                title_el = card.select_one(".multi--titleText--nXeOvyr, h3")
+                                price_el = card.select_one(".multi--price-sale--U-S0jtj, .search-card-e-price-main")
+                                orders_el = card.select_one(".multi--trade--Ktbl2jB, .search-card-e-review")
+
+                                title = title_el.get_text(strip=True) if title_el else None
+                                if not title:
+                                    continue
+
+                                price = _parse_price(price_el.get_text(strip=True)) if price_el else 0
+                                orders_text = orders_el.get_text(strip=True) if orders_el else "0"
+                                orders = _parse_order_count(orders_text)
+
+                                products.append({
+                                    "source": "aliexpress",
+                                    "name": title[:80],
+                                    "trend_data": {
+                                        "orders_30d": orders,
+                                        "price": price,
+                                        "rating": 0,
+                                        "order_velocity": round(orders / 30, 1) if orders else 0,
+                                    },
+                                    "discovered_at": datetime.now(timezone.utc).isoformat(),
+                                })
+
+                    await asyncio.sleep(1)
+                except Exception as e:
+                    logger.warning(f"AliExpress scrape failed for '{term}': {e}")
+
+        return products[:15]
+
+    async def find_suppliers(self, product_name: str) -> List[Dict[str, Any]]:
+        """Find suppliers for a specific product on AliExpress"""
+        suppliers = []
+
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            try:
+                url = f"https://www.aliexpress.com/w/wholesale-{quote_plus(product_name)}.html"
+                params = {"SortType": "total_tranpro_desc"}
+                resp = await client.get(url, params=params, headers=_get_headers(4))
+
+                if resp.status_code == 200:
+                    soup = BeautifulSoup(resp.text, "html.parser")
+
+                    # Parse product listings as potential suppliers
+                    for script in soup.find_all("script"):
+                        text = script.string or ""
+                        if "window._dida_config_" in text or "runParams" in text:
+                            titles = re.findall(r'"title":"([^"]{5,80})"', text)
+                            prices = re.findall(r'"minPrice":"?(\d+\.?\d*)"?', text)
+                            orders = re.findall(r'"tradeCount":"?(\d+)"?', text)
+                            ratings = re.findall(r'"starRating":"?(\d+\.?\d*)"?', text)
+                            store_names = re.findall(r'"storeName":"([^"]+)"', text)
+
+                            for i in range(min(len(titles), 5)):
+                                price = float(prices[i]) if i < len(prices) else 0
+                                if price <= 0:
+                                    continue
+                                suppliers.append({
+                                    "name": store_names[i] if i < len(store_names) else f"Supplier {i+1}",
+                                    "platform": "aliexpress",
+                                    "unit_cost": price,
+                                    "shipping_cost": round(price * 0.15, 2),  # Estimate ~15% for ePacket
+                                    "shipping_days": "10-20",
+                                    "rating": float(ratings[i]) if i < len(ratings) else 4.5,
+                                    "total_orders": int(orders[i]) if i < len(orders) else 0,
+                                })
+            except Exception as e:
+                logger.warning(f"AliExpress supplier search failed for '{product_name}': {e}")
+
+        return suppliers
 
 
 class GoogleTrendsScanner:
-    """Scans Google Trends for rising search terms"""
-    
+    """Uses pytrends library for real Google Trends data"""
+
     async def scan_rising_terms(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
         """Scan Google Trends for rising product-related searches"""
         products = []
-        
-        sample_terms = [
-            {"term": "portable neck fan", "growth": 340, "volume": 125000},
-            {"term": "sunset lamp", "growth": 280, "volume": 185000},
-            {"term": "smart water bottle", "growth": 120, "volume": 67000},
-            {"term": "led book lamp", "growth": 180, "volume": 89000},
-            {"term": "cloud slides", "growth": 95, "volume": 210000},
-            {"term": "magnetic phone holder car", "growth": 45, "volume": 98000},
-            {"term": "mini projector portable", "growth": 75, "volume": 156000},
-            {"term": "ice face roller", "growth": 220, "volume": 72000},
-        ]
-        
-        for t in sample_terms:
-            if t["growth"] >= 50:  # Only rising terms
-                products.append({
-                    "source": "google_trends",
-                    "name": t["term"].title(),
-                    "trend_data": {
-                        "search_term": t["term"],
-                        "growth_percent": t["growth"],
-                        "monthly_volume": t["volume"],
-                        "trend_direction": "up" if t["growth"] > 0 else "down"
-                    },
-                    "discovered_at": datetime.now(timezone.utc).isoformat()
-                })
-        
-        return products
+
+        try:
+            from pytrends.request import TrendReq
+
+            pytrends = TrendReq(hl='en-US', tz=300)
+
+            # Product-related seed keywords to find rising terms
+            seed_keywords = [
+                "buy", "gadget", "product", "Amazon find",
+            ]
+            if category:
+                seed_keywords = [category]
+
+            for keyword in seed_keywords[:2]:
+                try:
+                    pytrends.build_payload([keyword], cat=0, timeframe='now 7-d', geo='US')
+                    related = pytrends.related_queries()
+
+                    if keyword in related and related[keyword].get("rising") is not None:
+                        rising_df = related[keyword]["rising"]
+                        for _, row in rising_df.head(5).iterrows():
+                            query = row.get("query", "")
+                            value = row.get("value", 0)
+
+                            # Filter for product-like terms (exclude people, places)
+                            if query and len(query) > 3:
+                                products.append({
+                                    "source": "google_trends",
+                                    "name": query.title(),
+                                    "trend_data": {
+                                        "search_term": query,
+                                        "growth_percent": int(value) if value != "Breakout" else 5000,
+                                        "monthly_volume": 0,  # pytrends doesn't give exact volume
+                                        "trend_direction": "up",
+                                    },
+                                    "discovered_at": datetime.now(timezone.utc).isoformat(),
+                                })
+
+                    await asyncio.sleep(1)  # Rate limit pytrends
+                except Exception as e:
+                    logger.warning(f"Google Trends failed for '{keyword}': {e}")
+
+        except ImportError:
+            logger.error("pytrends not installed - Google Trends scanner disabled")
+
+        return products[:10]
 
 
 class MetaAdLibraryScanner:
-    """Scans Meta Ad Library for competitor ads"""
-    
+    """Scrapes the public Meta Ad Library for competitor ad data"""
+
+    SEARCH_URL = "https://www.facebook.com/ads/library/"
+    API_URL = "https://www.facebook.com/ads/library/async/search_ads/"
+
     async def scan_product_ads(self, product_name: str) -> Dict[str, Any]:
-        """Scan Meta Ad Library for ads related to a product"""
-        # Simulated data
-        ad_count = random.randint(5, 100)
-        
-        return {
+        """Scrape Meta Ad Library for ads related to a product"""
+        result = {
             "product": product_name,
-            "total_ads": ad_count,
-            "active_ads": int(ad_count * 0.7),
-            "top_advertisers": [
-                {"name": f"Store_{i}", "ad_count": random.randint(1, 10)}
-                for i in range(min(5, ad_count // 10 + 1))
-            ],
-            "common_hooks": [
-                "Limited time offer",
-                "Free shipping",
-                "50% off today",
-                "As seen on TikTok"
-            ],
-            "avg_ad_duration_days": random.randint(7, 45),
-            "scanned_at": datetime.now(timezone.utc).isoformat()
+            "total_ads": 0,
+            "active_ads": 0,
+            "top_advertisers": [],
+            "common_hooks": [],
+            "avg_ad_duration_days": 0,
+            "scanned_at": datetime.now(timezone.utc).isoformat(),
         }
+
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+            try:
+                # Search the public ad library page
+                params = {
+                    "active_status": "active",
+                    "ad_type": "all",
+                    "country": "US",
+                    "q": product_name,
+                    "media_type": "all",
+                }
+                resp = await client.get(
+                    self.SEARCH_URL,
+                    params=params,
+                    headers=_get_headers(0),
+                )
+
+                if resp.status_code == 200:
+                    soup = BeautifulSoup(resp.text, "html.parser")
+
+                    # Count ad results
+                    ad_cards = soup.select("._7jvw, .x1dr75xp, [data-testid='ad_library_card']")
+                    result["total_ads"] = len(ad_cards)
+                    result["active_ads"] = len(ad_cards)
+
+                    # Extract advertiser names
+                    advertisers = {}
+                    for card in ad_cards[:20]:
+                        name_el = card.select_one("._7jyr, .x8t9es0, a[href*='page_id']")
+                        if name_el:
+                            name = name_el.get_text(strip=True)
+                            advertisers[name] = advertisers.get(name, 0) + 1
+
+                    result["top_advertisers"] = [
+                        {"name": name, "ad_count": count}
+                        for name, count in sorted(advertisers.items(), key=lambda x: x[1], reverse=True)[:5]
+                    ]
+
+                    # Extract common hooks from ad text
+                    hooks = set()
+                    for card in ad_cards[:10]:
+                        text_el = card.select_one("._7jws, .x1iorvi4, div[data-testid='ad_creative_body']")
+                        if text_el:
+                            text = text_el.get_text(strip=True)
+                            # First line is usually the hook
+                            first_line = text.split(".")[0].strip()
+                            if first_line and len(first_line) > 5:
+                                hooks.add(first_line[:80])
+
+                    result["common_hooks"] = list(hooks)[:5]
+
+                    # If we got no results from HTML, try the async endpoint
+                    if result["total_ads"] == 0:
+                        result = await self._search_via_api(client, product_name, result)
+
+            except Exception as e:
+                logger.warning(f"Meta Ad Library scrape failed for '{product_name}': {e}")
+
+        return result
+
+    async def _search_via_api(self, client: httpx.AsyncClient, product_name: str, result: Dict) -> Dict:
+        """Try the Meta Ad Library API endpoint as fallback"""
+        try:
+            resp = await client.get(
+                "https://www.facebook.com/ads/library/",
+                params={
+                    "active_status": "active",
+                    "ad_type": "all",
+                    "country": "ALL",
+                    "q": product_name,
+                },
+                headers={**_get_headers(1), "Accept": "text/html"},
+            )
+            if resp.status_code == 200:
+                # Count approximate results from page text
+                text = resp.text
+                count_match = re.search(r'(\d[\d,]*)\s*(?:results|ads)', text, re.I)
+                if count_match:
+                    count = int(count_match.group(1).replace(",", ""))
+                    result["total_ads"] = count
+                    result["active_ads"] = count
+        except Exception as e:
+            logger.warning(f"Meta Ad Library API fallback failed: {e}")
+        return result
 
 
 class CompetitorScanner:
-    """Monitors competitor Shopify stores"""
-    
+    """Scrapes competitor Shopify stores via their public products.json"""
+
     async def scan_store(self, store_url: str) -> Dict[str, Any]:
-        """Scan a competitor store for products"""
-        # Generate store ID from URL
-        store_id = hashlib.md5(store_url.encode()).hexdigest()[:8]
-        
-        # Simulated product data
-        products = []
-        sample_names = [
-            "Premium Wireless Earbuds", "Smart LED Strip Kit", "Portable Blender Pro",
-            "Ergonomic Neck Pillow", "UV Phone Sanitizer", "Mini Drone Camera",
-            "Heated Eye Mask", "Electric Scalp Massager"
-        ]
-        
-        for i, name in enumerate(random.sample(sample_names, random.randint(3, 6))):
-            products.append({
-                "name": name,
-                "price": round(random.uniform(19.99, 79.99), 2),
-                "added_date": datetime.now(timezone.utc).isoformat(),
-                "is_new": i < 2  # First 2 are "new"
-            })
-        
-        return {
+        """Scrape a Shopify store's product catalog via products.json"""
+        # Normalize URL
+        store_url = store_url.rstrip("/")
+        if not store_url.startswith("http"):
+            store_url = f"https://{store_url}"
+
+        result = {
             "store_url": store_url,
-            "store_id": store_id,
             "store_name": store_url.split("//")[-1].split(".")[0].title(),
-            "products": products,
-            "total_products": len(products),
-            "new_products_count": sum(1 for p in products if p["is_new"]),
-            "scanned_at": datetime.now(timezone.utc).isoformat()
+            "products": [],
+            "total_products": 0,
+            "new_products_count": 0,
+            "scanned_at": datetime.now(timezone.utc).isoformat(),
         }
-    
+
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            try:
+                # Shopify stores expose products.json publicly
+                products_url = f"{store_url}/products.json"
+                resp = await client.get(products_url, headers=_get_headers(0))
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    raw_products = data.get("products", [])
+
+                    for p in raw_products:
+                        # Get the lowest variant price
+                        variants = p.get("variants", [{}])
+                        prices = [float(v.get("price", "0")) for v in variants if v.get("price")]
+                        price = min(prices) if prices else 0
+
+                        result["products"].append({
+                            "name": p.get("title", "Unknown"),
+                            "price": price,
+                            "category": p.get("product_type", "Uncategorized"),
+                            "url": f"{store_url}/products/{p.get('handle', '')}",
+                            "image_url": (p.get("images", [{}])[0].get("src", "") if p.get("images") else ""),
+                            "created_at": p.get("created_at", ""),
+                            "updated_at": p.get("updated_at", ""),
+                        })
+
+                    result["total_products"] = len(result["products"])
+                    result["store_name"] = _extract_store_name(resp.text, store_url)
+
+                    # Paginate if more products (Shopify returns 30 per page)
+                    page = 2
+                    while len(raw_products) == 30 and page <= 5:
+                        resp2 = await client.get(f"{products_url}?page={page}", headers=_get_headers(1))
+                        if resp2.status_code == 200:
+                            more = resp2.json().get("products", [])
+                            if not more:
+                                break
+                            raw_products = more
+                            for p in more:
+                                variants = p.get("variants", [{}])
+                                prices = [float(v.get("price", "0")) for v in variants if v.get("price")]
+                                price = min(prices) if prices else 0
+                                result["products"].append({
+                                    "name": p.get("title", "Unknown"),
+                                    "price": price,
+                                    "category": p.get("product_type", "Uncategorized"),
+                                    "url": f"{store_url}/products/{p.get('handle', '')}",
+                                    "image_url": (p.get("images", [{}])[0].get("src", "") if p.get("images") else ""),
+                                    "created_at": p.get("created_at", ""),
+                                    "updated_at": p.get("updated_at", ""),
+                                })
+                            result["total_products"] = len(result["products"])
+                            page += 1
+                        else:
+                            break
+                        await asyncio.sleep(0.5)
+
+                else:
+                    logger.warning(f"Could not access {products_url} - status {resp.status_code}. Store may not be Shopify.")
+
+            except Exception as e:
+                logger.warning(f"Competitor store scrape failed for {store_url}: {e}")
+
+        return result
+
     async def detect_new_products(self, store_url: str, previous_products: List[str]) -> List[Dict[str, Any]]:
         """Detect new products added to a store since last scan"""
         current_scan = await self.scan_store(store_url)
-        current_names = {p["name"] for p in current_scan["products"]}
         previous_names = set(previous_products)
-        
-        new_products = []
-        for product in current_scan["products"]:
-            if product["name"] not in previous_names:
-                new_products.append(product)
-        
+
+        new_products = [
+            product for product in current_scan["products"]
+            if product["name"] not in previous_names
+        ]
         return new_products
 
 
 class ProductScoutEngine:
-    """Main engine that orchestrates all scanners"""
-    
+    """Main engine that orchestrates all real scrapers"""
+
     def __init__(self):
         self.tiktok = TikTokScanner()
         self.amazon = AmazonScanner()
@@ -242,42 +594,101 @@ class ProductScoutEngine:
         self.google_trends = GoogleTrendsScanner()
         self.meta_ads = MetaAdLibraryScanner()
         self.competitor = CompetitorScanner()
-    
+
     async def run_full_scan(self) -> Dict[str, Any]:
-        """Run a full scan across all sources"""
+        """Run a full scan across all real sources"""
         results = await asyncio.gather(
             self.tiktok.scan_trending(),
             self.amazon.scan_movers_shakers(),
             self.aliexpress.scan_trending(),
             self.google_trends.scan_rising_terms(),
-            return_exceptions=True
+            return_exceptions=True,
         )
-        
+
         all_products = []
         source_stats = {}
-        
+
         sources = ["tiktok", "amazon", "aliexpress", "google_trends"]
         for i, source in enumerate(sources):
             if isinstance(results[i], list):
                 all_products.extend(results[i])
                 source_stats[source] = len(results[i])
             else:
+                logger.warning(f"Scanner {source} returned error: {results[i]}")
                 source_stats[source] = 0
-        
+
         return {
             "total_products": len(all_products),
             "products": all_products,
             "source_stats": source_stats,
-            "scan_time": datetime.now(timezone.utc).isoformat()
+            "scan_time": datetime.now(timezone.utc).isoformat(),
         }
-    
+
     async def analyze_product(self, product_name: str) -> Dict[str, Any]:
-        """Deep analysis of a specific product"""
+        """Analyze a specific product across sources"""
         ad_data = await self.meta_ads.scan_product_ads(product_name)
-        
+        suppliers = await self.aliexpress.find_suppliers(product_name)
+
         return {
             "product_name": product_name,
             "competition_analysis": ad_data,
+            "suppliers": suppliers,
             "recommendation": "low_competition" if ad_data["total_ads"] < 50 else "high_competition",
-            "analyzed_at": datetime.now(timezone.utc).isoformat()
+            "analyzed_at": datetime.now(timezone.utc).isoformat(),
         }
+
+
+# ========== Helper Functions ==========
+
+def _parse_price(text: str) -> float:
+    """Extract price from text like '$29.99' or 'US $5.80'"""
+    match = re.search(r'[\d,]+\.?\d*', text.replace(",", ""))
+    return float(match.group()) if match else 0.0
+
+
+def _parse_order_count(text: str) -> int:
+    """Parse order count from text like '1.2K+ sold' or '15,000 orders'"""
+    text = text.lower().replace(",", "").replace("+", "")
+    match = re.search(r'([\d.]+)\s*k', text)
+    if match:
+        return int(float(match.group(1)) * 1000)
+    match = re.search(r'(\d+)', text)
+    return int(match.group(1)) if match else 0
+
+
+def _parse_view_count(text: str) -> int:
+    """Parse view count from text like '47.2M views' or '1.5B views'"""
+    text = text.upper().replace(",", "")
+    match = re.search(r'([\d.]+)\s*B', text)
+    if match:
+        return int(float(match.group(1)) * 1_000_000_000)
+    match = re.search(r'([\d.]+)\s*M', text)
+    if match:
+        return int(float(match.group(1)) * 1_000_000)
+    match = re.search(r'([\d.]+)\s*K', text)
+    if match:
+        return int(float(match.group(1)) * 1_000)
+    match = re.search(r'(\d+)', text)
+    return int(match.group(1)) if match else 0
+
+
+def _extract_product_name(description: str, hashtag: str) -> str:
+    """Best-effort extraction of a product name from a TikTok video description"""
+    # Remove hashtags and emojis, take first meaningful phrase
+    cleaned = re.sub(r'#\w+', '', description)
+    cleaned = re.sub(r'[^\w\s\-\']', '', cleaned).strip()
+    words = cleaned.split()
+    if len(words) > 2:
+        return " ".join(words[:5]).title()
+    return hashtag.replace("_", " ").title()
+
+
+def _extract_store_name(html: str, url: str) -> str:
+    """Extract store name from page HTML or fall back to URL"""
+    soup = BeautifulSoup(html, "html.parser")
+    title = soup.find("title")
+    if title:
+        name = title.get_text(strip=True).split("|")[0].split("-")[0].strip()
+        if name and len(name) > 1:
+            return name
+    return url.split("//")[-1].split(".")[0].title()
