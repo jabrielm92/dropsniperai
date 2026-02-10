@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -16,6 +16,7 @@ export default function Saturation() {
   const [overview, setOverview] = useState(null);
   const [niches, setNiches] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [tierBlocked, setTierBlocked] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -26,8 +27,12 @@ export default function Saturation() {
       setOverview(overviewRes.data);
       setNiches(nichesRes.data);
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to load saturation data');
+      if (error.response?.status === 403) {
+        setTierBlocked(true);
+      } else {
+        console.error('Error:', error);
+        toast.error('Failed to load saturation data');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,6 +58,34 @@ export default function Saturation() {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (tierBlocked) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <Card className="bg-[#121212] border-white/5 max-w-md w-full mx-4">
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-yellow-500" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Elite Feature</h2>
+            <p className="text-muted-foreground mb-6">
+              Saturation Radar requires the Elite plan or higher. Upgrade to analyze market competition.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button variant="outline" onClick={() => navigate('/dashboard')} className="border-white/10">
+                Back to Dashboard
+              </Button>
+              <Link to="/pricing">
+                <Button className="bg-primary text-black font-bold hover:bg-primary/90">
+                  Upgrade Plan
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

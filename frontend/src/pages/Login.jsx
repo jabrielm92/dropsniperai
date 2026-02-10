@@ -69,9 +69,9 @@ export default function Login() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                <a href="mailto:dropsniperai@arisolutionsinc.com?subject=Password Reset Request" className="text-sm text-primary hover:underline">
                   Forgot password?
-                </Link>
+                </a>
               </div>
               <Input
                 id="password"

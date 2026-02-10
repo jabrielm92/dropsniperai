@@ -505,25 +505,39 @@ export default function Settings() {
             <Card className="bg-[#121212] border-white/5">
               <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>Choose how you want to receive updates</CardDescription>
+                <CardDescription>Notifications are sent via your Telegram bot when configured</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                  <span>Daily Report via Telegram</span>
-                  <Switch defaultChecked />
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                  <div>
+                    <p className="font-medium">Daily Report via Telegram</p>
+                    <p className="text-xs text-muted-foreground mt-1">Sent automatically at 7:00 AM Eastern</p>
+                  </div>
+                  <Badge className={keysStatus.has_telegram_token && keysStatus.telegram_chat_id ? 'bg-primary/20 text-primary' : 'bg-white/5 text-muted-foreground'}>
+                    {keysStatus.has_telegram_token && keysStatus.telegram_chat_id ? 'Active' : 'Setup Required'}
+                  </Badge>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                  <span>Competition Alerts</span>
-                  <Switch defaultChecked />
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                  <div>
+                    <p className="font-medium">Competition Alerts</p>
+                    <p className="text-xs text-muted-foreground mt-1">Get notified when competitors add new products</p>
+                  </div>
+                  <Badge className="bg-white/5 text-muted-foreground">Elite Plan</Badge>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                  <span>New Trend Alerts</span>
-                  <Switch defaultChecked />
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                  <div>
+                    <p className="font-medium">Trend Spike Alerts</p>
+                    <p className="text-xs text-muted-foreground mt-1">Alerts when tracked products surge in search interest</p>
+                  </div>
+                  <Badge className="bg-white/5 text-muted-foreground">Elite Plan</Badge>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                  <span>Competitor Updates</span>
-                  <Switch defaultChecked />
-                </div>
+                {!(keysStatus.has_telegram_token && keysStatus.telegram_chat_id) && (
+                  <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                    <p className="text-sm text-blue-400">
+                      Configure your Telegram Bot Token and Chat ID in the <strong>API Keys</strong> tab to enable notifications.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

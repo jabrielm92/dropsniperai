@@ -39,9 +39,27 @@ app = FastAPI(title="DropSniper AI API", version="2.0.0")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Start background scheduler on startup
+# Create indexes and start scheduler on startup
 @app.on_event("startup")
 async def startup_event():
+    # Create MongoDB indexes for performance
+    try:
+        await db.users.create_index("email", unique=True)
+        await db.users.create_index("id", unique=True)
+        await db.products.create_index("id", unique=True)
+        await db.products.create_index([("overall_score", -1)])
+        await db.daily_products.create_index([("scan_date", 1), ("is_active", 1)])
+        await db.daily_products.create_index("user_id")
+        await db.launch_kits.create_index("user_id")
+        await db.launch_kits.create_index("id", unique=True)
+        await db.competitors.create_index("user_id")
+        await db.scan_history.create_index([("user_id", 1), ("scan_date", -1)])
+        await db.boards.create_index("user_id")
+        logger.info("MongoDB indexes created")
+    except Exception as e:
+        logger.error(f"Failed to create indexes: {e}")
+
+    # Start background scheduler
     from services.scheduler import start_scheduler
     try:
         start_scheduler(db)
@@ -49,12 +67,19 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to start scheduler: {e}")
 
-# CORS - Read from environment or allow specific origins
-CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*')
-if CORS_ORIGINS == '*':
-    origins = ["*"]
-else:
+# CORS - Use FRONTEND_URL for production, fallback to permissive for dev
+FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
+CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '')
+
+if CORS_ORIGINS:
     origins = [origin.strip() for origin in CORS_ORIGINS.split(',')]
+elif FRONTEND_URL:
+    origins = [FRONTEND_URL]
+    # Also allow common dev origins
+    if 'localhost' not in FRONTEND_URL:
+        origins.extend(["http://localhost:3000", "http://localhost:3001"])
+else:
+    origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -392,7 +417,12 @@ async def run_ai_browser_full_scan(user: User = Depends(get_current_user)):
     return results
 
 @api_router.post("/scan/ai-browser/{source}")
-async def run_ai_browser_source_scan(source: str, user: User = Depends(get_current_user)):
+async def run_ai_browser_source_scan(
+    source: str,
+    store_url: Optional[str] = None,
+    product_name: Optional[str] = None,
+    user: User = Depends(get_current_user)
+):
     """Run AI browser scan for a single source"""
     if not user.openai_api_key:
         raise HTTPException(status_code=400, detail="OpenAI API key required")
@@ -402,6 +432,10 @@ async def run_ai_browser_source_scan(source: str, user: User = Depends(get_curre
     from services.ai_scanner import create_scanner
     scanner = create_scanner(user.openai_api_key)
     filters = user.filters if user.filters else {}
+    if store_url:
+        filters["store_url"] = store_url
+    if product_name:
+        filters["product_name"] = product_name
     result = await scanner.scan_source(source, filters)
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error", "Scan failed"))

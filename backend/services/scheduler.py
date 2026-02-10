@@ -98,21 +98,23 @@ class ScanScheduler:
                 await self.run_user_scan(user)
     
     async def run_user_scan(self, user: Dict[str, Any]):
-        """Run AI scan for a specific user"""
-        from services.ai_browser_agent import create_agent_for_user, BROWSER_USE_AVAILABLE
-        
+        """Run AI scan for a specific user using OpenAI-based scanner"""
+        from services.ai_scanner import create_scanner
+
         user_id = user["id"]
         openai_key = user.get("openai_api_key")
-        
-        if not openai_key or not BROWSER_USE_AVAILABLE:
-            logger.warning(f"Skipping scan for user {user_id} - no API key or browser-use unavailable")
+
+        if not openai_key:
+            logger.warning(f"Skipping scan for user {user_id} - no OpenAI API key")
             return
-        
+
         logger.info(f"Running scan for user {user_id} ({user.get('email')})")
-        
+
         try:
-            agent = create_agent_for_user(openai_key)
-            results = await agent.run_full_scan()
+            scanner = create_scanner(openai_key)
+            user_doc = await self.db.users.find_one({"id": user_id}, {"_id": 0, "filters": 1})
+            filters = user_doc.get("filters", {}) if user_doc else {}
+            results = await scanner.run_full_scan(filters)
             
             # Store scan results
             scan_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -141,20 +143,16 @@ class ScanScheduler:
     
     async def _process_scan_results(self, user_id: str, scan_date: str, results: Dict):
         """Process scan results and store as products"""
-        from services.scanners import ProductScoutEngine
         import uuid
-        
-        # Extract products from AI results or use mock data
+
         all_products = []
-        
-        if results.get("configured") and "results" in results:
-            # Parse AI results - this would need real parsing logic
-            # For now, generate sample products based on scan
-            scout = ProductScoutEngine()
-            mock_results = await scout.run_full_scan()
-            all_products = mock_results.get("products", [])
+
+        # Extract products from AI scanner results
+        if results.get("success") and results.get("products"):
+            all_products = results["products"]
         else:
-            # Use mock scanner for fallback
+            # Fallback to mock scanner data
+            from services.scanners import ProductScoutEngine
             scout = ProductScoutEngine()
             mock_results = await scout.run_full_scan()
             all_products = mock_results.get("products", [])
