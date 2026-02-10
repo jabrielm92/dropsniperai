@@ -31,23 +31,30 @@ export default function Dashboard() {
     setLoading(true);
     try {
       await seedData();
-      const [reportRes, productsRes, statsRes, keysRes, scanStatusRes] = await Promise.all([
+      const [reportRes, productsRes, statsRes, keysRes, scanStatusRes] = await Promise.allSettled([
         getDailyReport(),
         getTodayProducts(),
         getStats(),
         getUserKeys(),
         getScanStatus()
       ]);
-      setReport(reportRes.data);
-      setProducts(productsRes.data.products || productsRes.data);
-      setStats(statsRes.data);
-      setScanStatus(scanStatusRes.data);
-      
+      if (reportRes.status === 'fulfilled') setReport(reportRes.value.data);
+      if (productsRes.status === 'fulfilled') setProducts(productsRes.value.data.products || productsRes.value.data);
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
+      if (scanStatusRes.status === 'fulfilled') setScanStatus(scanStatusRes.value.data);
+
       // Show wizard if user hasn't configured any keys and hasn't dismissed it (per-user)
-      const wizardKey = `setupWizardDismissed_${user?.id}`;
-      const wizardDismissed = localStorage.getItem(wizardKey);
-      if (!wizardDismissed && !keysRes.data.has_openai_key && !keysRes.data.has_telegram_token) {
-        setShowWizard(true);
+      if (keysRes.status === 'fulfilled') {
+        const wizardKey = `setupWizardDismissed_${user?.id}`;
+        const wizardDismissed = localStorage.getItem(wizardKey);
+        if (!wizardDismissed && !keysRes.value.data.has_openai_key && !keysRes.value.data.has_telegram_token) {
+          setShowWizard(true);
+        }
+      }
+
+      const failures = [reportRes, productsRes, statsRes, keysRes, scanStatusRes].filter(r => r.status === 'rejected');
+      if (failures.length === 5) {
+        toast.error('Failed to load dashboard data');
       }
     } catch (error) {
       console.error('Error fetching data:', error);
