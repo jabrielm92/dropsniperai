@@ -419,36 +419,7 @@ async def run_full_scan_stream(token: str = None):
         from services.ai_scanner import create_scanner
         scanner = create_scanner(user.openai_api_key)
 
-        async def scrape_with_ai_fallback(source_name, scraper_fn, step_key, label):
-            """Scrape a source, fall back to AI if scraper returns 0 products."""
-            yield send({"step": step_key, "status": "scanning", "message": f"Scanning {label}..."})
-            products = []
-            try:
-                products = await scraper_fn()
-                if products:
-                    yield send({"step": step_key, "status": "done", "count": len(products), "message": f"{source_name}: scraped {len(products)} products"})
-                else:
-                    # Scraper returned 0 - use AI fallback for this source
-                    yield send({"step": step_key, "status": "scanning", "message": f"{source_name}: scraper returned 0, using AI fallback..."})
-                    try:
-                        ai_result = await scanner.scan_source(source_name, filters)
-                        ai_products = ai_result.get("products", [])
-                        products = ai_products
-                        yield send({"step": step_key, "status": "done", "count": len(products), "message": f"{source_name}: AI generated {len(products)} products"})
-                    except Exception as ai_err:
-                        yield send({"step": step_key, "status": "done", "count": 0, "message": f"{source_name}: AI fallback failed - {str(ai_err)[:60]}"})
-            except Exception as e:
-                # Scraper errored - try AI fallback
-                yield send({"step": step_key, "status": "scanning", "message": f"{source_name}: scraper error, using AI fallback..."})
-                try:
-                    ai_result = await scanner.scan_source(source_name, filters)
-                    products = ai_result.get("products", [])
-                    yield send({"step": step_key, "status": "done", "count": len(products), "message": f"{source_name}: AI generated {len(products)} products"})
-                except Exception:
-                    yield send({"step": step_key, "status": "error", "message": f"{source_name}: {str(e)[:80]}"})
-            return products
-
-        # Note: async generators can't be used with yield from, so we inline the pattern
+        # Inline per-source scraping with AI fallback when scrapers return 0
         tiktok_products = []
         yield send({"step": "tiktok", "status": "scanning", "message": "Scanning TikTok Creative Center..."})
         try:
