@@ -1,6 +1,7 @@
 """DropSniper AI - Main FastAPI Application"""
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -300,40 +301,51 @@ async def run_full_scan(user: User = Depends(get_current_user)):
     """Run a full AI-powered scan across all sources"""
     if not user.openai_api_key:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="OpenAI API key required. Add your key in Settings to enable scanning."
         )
-    
+
     from services.ai_scanner import create_scanner
-    
+
     # Get user's filters
     filters = user.filters if user.filters else {}
-    
+
     scanner = create_scanner(user.openai_api_key)
     results = await scanner.run_full_scan(filters)
-    
+
     if not results.get("success"):
         raise HTTPException(status_code=500, detail=results.get("error", "Scan failed"))
-    
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
     # Save scan to history
     scan_record = {
         "user_id": user.id,
+        "scan_date": today,
         "scan_type": "full",
-        "results": results,
+        "results_summary": {
+            "total_products": results.get("count", 0),
+            "source_stats": results.get("source_stats", {}),
+        },
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.scan_history.insert_one(scan_record)
-    
+
     # Store products for dashboard
+    import uuid as _uuid
     for product in results.get("products", []):
         product_doc = {
+            "id": str(_uuid.uuid4()),
             "user_id": user.id,
-            "scan_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "scan_date": today,
             "is_active": True,
             **product
         }
         await db.daily_products.insert_one(product_doc)
-    
+
+    # Invalidate stale daily report so it regenerates with real data
+    await db.daily_reports.delete_many({"user_id": user.id, "date": today})
+
     # Send Telegram notification if configured
     if user.telegram_bot_token and user.telegram_chat_id:
         from services.telegram_bot import TelegramBot
@@ -345,8 +357,202 @@ async def run_full_scan(user: User = Depends(get_current_user)):
             user.telegram_chat_id,
             f"✅ <b>Scan Complete!</b>\n\nFound {results.get('total_products', 0)} trending products.\n\n📊 Check your dashboard for details."
         )
-    
+
     return results
+
+@api_router.get("/scan/full/stream")
+async def run_full_scan_stream(token: str = None):
+    """Run a full scan with Server-Sent Events for real-time progress.
+    Uses ?token= query param for auth since EventSource doesn't support headers."""
+    if not token:
+        raise HTTPException(status_code=401, detail="Token required as query parameter")
+
+    import jwt as _jwt
+    try:
+        payload = _jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        user_id = payload.get("sub")
+        user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
+        if not user_doc:
+            raise HTTPException(status_code=401, detail="User not found")
+        user = User(**user_doc)
+    except _jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except _jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if not user.openai_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="OpenAI API key required."
+        )
+
+    import asyncio
+    import json as _json
+    import uuid as _uuid
+
+    async def event_stream():
+        def send(data):
+            return f"data: {_json.dumps(data)}\n\n"
+
+        filters = user.filters if user.filters else {}
+
+        # Step 1: Run real scrapers individually with progress updates
+        from services.scanners import (
+            TikTokScanner, AmazonScanner, AliExpressScanner, GoogleTrendsScanner
+        )
+
+        yield send({"step": "tiktok", "status": "scanning", "message": "Scanning TikTok Creative Center..."})
+        tiktok_products = []
+        try:
+            tiktok_products = await TikTokScanner().scan_trending()
+            yield send({"step": "tiktok", "status": "done", "count": len(tiktok_products), "message": f"TikTok: found {len(tiktok_products)} products"})
+        except Exception as e:
+            yield send({"step": "tiktok", "status": "error", "message": f"TikTok: {str(e)[:80]}"})
+
+        yield send({"step": "amazon", "status": "scanning", "message": "Scanning Amazon Movers & Shakers..."})
+        amazon_products = []
+        try:
+            amazon_products = await AmazonScanner().scan_movers_shakers()
+            yield send({"step": "amazon", "status": "done", "count": len(amazon_products), "message": f"Amazon: found {len(amazon_products)} products"})
+        except Exception as e:
+            yield send({"step": "amazon", "status": "error", "message": f"Amazon: {str(e)[:80]}"})
+
+        yield send({"step": "aliexpress", "status": "scanning", "message": "Scanning AliExpress trending products..."})
+        ali_products = []
+        try:
+            ali_products = await AliExpressScanner().scan_trending()
+            yield send({"step": "aliexpress", "status": "done", "count": len(ali_products), "message": f"AliExpress: found {len(ali_products)} products"})
+        except Exception as e:
+            yield send({"step": "aliexpress", "status": "error", "message": f"AliExpress: {str(e)[:80]}"})
+
+        yield send({"step": "google_trends", "status": "scanning", "message": "Scanning Google Trends rising searches..."})
+        trends_products = []
+        try:
+            trends_products = await GoogleTrendsScanner().scan_rising_terms()
+            yield send({"step": "google_trends", "status": "done", "count": len(trends_products), "message": f"Google Trends: found {len(trends_products)} products"})
+        except Exception as e:
+            yield send({"step": "google_trends", "status": "error", "message": f"Google Trends: {str(e)[:80]}"})
+
+        all_raw = tiktok_products + amazon_products + ali_products + trends_products
+        source_stats = {
+            "tiktok": len(tiktok_products),
+            "amazon": len(amazon_products),
+            "aliexpress": len(ali_products),
+            "google_trends": len(trends_products),
+        }
+
+        # Step 2: AI enrichment
+        yield send({"step": "ai_enrichment", "status": "scanning", "message": f"AI analyzing {len(all_raw)} raw products with GPT-4o..."})
+
+        from services.ai_scanner import create_scanner
+        scanner = create_scanner(user.openai_api_key)
+
+        products = []
+        try:
+            if all_raw:
+                products_summary = _json.dumps(all_raw[:20], default=str)
+                system_prompt = """You are a dropshipping product research expert. You will receive real scraped product data.
+Your job is to analyze, enrich, and score these products for dropshipping potential.
+You MUST respond with a JSON object containing a "products" array."""
+                filter_instructions = scanner._build_filter_instructions(filters)
+                user_prompt = f"""Real scraped data from multiple sources:
+
+{products_summary}
+
+For each product, provide enriched data:
+- name, source, estimated_views, source_cost, recommended_price
+- margin_percent, trend_score (1-100), overall_score (1-100), category
+- why_trending, saturation_level (low/medium/high), active_fb_ads (number)
+- trend_direction (up/down/stable)
+{filter_instructions}
+
+Return as JSON: {{"products": [...]}}"""
+                result = await scanner._call_openai_json(system_prompt, user_prompt)
+                raw_products = result.get("products", [])
+                products = [scanner._validate_product(p) for p in raw_products if scanner._validate_product(p)]
+                for p in products:
+                    p["discovered_at"] = datetime.now(timezone.utc).isoformat()
+                    p["ai_enriched"] = True
+
+            if not products:
+                # Fallback: ask AI to generate from knowledge
+                result = await scanner.scan_trending_products(filters)
+                products = result.get("products", [])
+
+            yield send({"step": "ai_enrichment", "status": "done", "count": len(products), "message": f"AI enriched {len(products)} products with scores and analysis"})
+        except Exception as e:
+            yield send({"step": "ai_enrichment", "status": "error", "message": f"AI enrichment: {str(e)[:80]}"})
+            products = all_raw[:10]  # Use raw data as fallback
+
+        # Step 3: Save results
+        yield send({"step": "saving", "status": "scanning", "message": "Saving results to your dashboard..."})
+
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        scan_record = {
+            "user_id": user.id,
+            "scan_date": today,
+            "scan_type": "full_stream",
+            "results_summary": {
+                "total_products": len(products),
+                "source_stats": source_stats,
+                "raw_products_scraped": len(all_raw),
+            },
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.scan_history.insert_one(scan_record)
+
+        for product in products:
+            product_doc = {
+                "id": str(_uuid.uuid4()),
+                "user_id": user.id,
+                "scan_date": today,
+                "is_active": True,
+                **product
+            }
+            await db.daily_products.insert_one(product_doc)
+
+        # Invalidate stale daily report
+        await db.daily_reports.delete_many({"user_id": user.id, "date": today})
+
+        yield send({"step": "saving", "status": "done", "message": f"Saved {len(products)} products"})
+
+        # Step 4: Telegram notification
+        if user.telegram_bot_token and user.telegram_chat_id:
+            yield send({"step": "telegram", "status": "scanning", "message": "Sending Telegram notification..."})
+            try:
+                from services.telegram_bot import TelegramBot
+                bot = TelegramBot()
+                bot.bot_token = user.telegram_bot_token
+                bot.is_configured = True
+                bot.base_url = f"https://api.telegram.org/bot{user.telegram_bot_token}"
+                await bot.send_message(
+                    user.telegram_chat_id,
+                    f"✅ <b>Scan Complete!</b>\n\nScraped {len(all_raw)} products from {sum(1 for v in source_stats.values() if v > 0)} sources.\nAI selected top {len(products)} opportunities.\n\n📊 Check your dashboard for details."
+                )
+                yield send({"step": "telegram", "status": "done", "message": "Telegram notification sent"})
+            except Exception as e:
+                yield send({"step": "telegram", "status": "error", "message": f"Telegram: {str(e)[:80]}"})
+
+        # Final complete event
+        yield send({
+            "step": "complete",
+            "status": "done",
+            "message": f"Scan complete! Found {len(products)} products from {len(all_raw)} raw results.",
+            "total_products": len(products),
+            "source_stats": source_stats,
+            "raw_scraped": len(all_raw),
+        })
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 @api_router.get("/scan/sources/{source}")
 async def scan_single_source(source: str, user: User = Depends(get_current_user)):
