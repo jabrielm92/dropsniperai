@@ -161,7 +161,7 @@ export default function Scanner() {
             <CardContent>
               <div className="grid gap-3 max-h-[500px] overflow-y-auto custom-scrollbar">
                 {(results.products || []).map((product, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                  <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer" onClick={() => product.id && navigate(`/product/${product.id}`)}>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <p className="font-medium">{product.name}</p>
