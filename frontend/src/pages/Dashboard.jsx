@@ -408,7 +408,7 @@ export default function Dashboard() {
               <h2 className="text-2xl font-bold">Top Opportunities</h2>
               <p className="text-muted-foreground">Highest scoring products ready for launch</p>
             </div>
-            <Button variant="outline" className="border-white/10 hover:border-primary/30">
+            <Button variant="outline" className="border-white/10 hover:border-primary/30" onClick={() => navigate('/scanner')}>
               View All
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
@@ -423,18 +423,35 @@ export default function Dashboard() {
                 data-testid={`product-card-${index}`}
               >
                 <div className="relative">
-                  <img 
-                    src={product.image_url} 
-                    alt={product.name}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                    />
+                  ) : null}
+                  <div
+                    className="w-full h-48 bg-gradient-to-br from-primary/20 to-purple-900/30 flex items-center justify-center"
+                    style={{ display: product.image_url ? 'none' : 'flex' }}
+                  >
+                    <div className="text-center px-4">
+                      <Package className="w-8 h-8 mx-auto mb-2 text-primary/60" />
+                      <p className="text-sm text-muted-foreground line-clamp-2">{product.name}</p>
+                      {product.source && (
+                        <Badge variant="secondary" className="mt-2 text-xs bg-white/5">
+                          {product.source}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
                   <div className="absolute top-3 right-3">
                     <Badge className={`${getScoreClass(product.overall_score)} font-mono text-lg px-3 py-1 border`}>
                       {product.overall_score}
                     </Badge>
                   </div>
                   <div className="absolute bottom-3 left-3 flex gap-2">
-                    {product.source_platforms?.slice(0, 2).map((platform, i) => (
+                    {(product.source_platforms || (product.source ? [product.source] : [])).slice(0, 2).map((platform, i) => (
                       <Badge key={i} variant="secondary" className="bg-black/60 backdrop-blur text-xs">
                         {platform}
                       </Badge>
@@ -447,11 +464,11 @@ export default function Dashboard() {
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Source Cost</p>
-                      <p className="font-mono font-bold">${product.source_cost.toFixed(2)}</p>
+                      <p className="font-mono font-bold">${(product.source_cost || 0).toFixed(2)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Sell Price</p>
-                      <p className="font-mono font-bold text-primary">${product.recommended_price.toFixed(2)}</p>
+                      <p className="font-mono font-bold text-primary">${(product.recommended_price || 0).toFixed(2)}</p>
                     </div>
                   </div>
 

@@ -95,48 +95,74 @@ async def get_top_products(limit: int = 5, user: User = Depends(get_current_user
     products = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).limit(limit).to_list(limit)
     return products
 
-@router.get("/{product_id}", response_model=Product)
+@router.get("/{product_id}")
 async def get_product(product_id: str, user: User = Depends(get_current_user)):
     db = get_db()
+    # Check seed products first
     product = await db.products.find_one({"id": product_id}, {"_id": 0})
+    if not product:
+        # Fallback: check daily_products (from scans)
+        product = await db.daily_products.find_one({"id": product_id}, {"_id": 0})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
-@router.get("/{product_id}/brief", response_model=ProductBrief)
+@router.get("/{product_id}/brief")
 async def get_product_brief(product_id: str, user: User = Depends(get_current_user)):
     db = get_db()
     product = await db.products.find_one({"id": product_id}, {"_id": 0})
+    is_daily = False
+    if not product:
+        product = await db.daily_products.find_one({"id": product_id}, {"_id": 0})
+        is_daily = True
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    
-    product_obj = Product(**product)
-    best_supplier = product_obj.suppliers[0] if product_obj.suppliers else Supplier(
-        name="Generic Supplier", platform="aliexpress", unit_cost=product_obj.source_cost,
-        shipping_cost=2.50, shipping_days="10-15", rating=4.5, total_orders=5000
-    )
-    
+
+    source_cost = float(product.get("source_cost", 0) or 0)
+    recommended_price = float(product.get("recommended_price", 0) or 0)
+    active_fb_ads = int(product.get("active_fb_ads", 0) or 0)
+
+    if is_daily:
+        # Daily products don't have full supplier data - build from scan data
+        best_supplier = Supplier(
+            name="AliExpress Supplier", platform="aliexpress", unit_cost=source_cost,
+            shipping_cost=round(source_cost * 0.15, 2) if source_cost > 0 else 2.50,
+            shipping_days="10-20", rating=4.5, total_orders=1000
+        )
+        alternative_suppliers = []
+        trademark_risk = False
+        trend_direction = product.get("trend_direction", "stable")
+    else:
+        product_obj = Product(**product)
+        best_supplier = product_obj.suppliers[0] if product_obj.suppliers else Supplier(
+            name="Generic Supplier", platform="aliexpress", unit_cost=source_cost,
+            shipping_cost=2.50, shipping_days="10-15", rating=4.5, total_orders=5000
+        )
+        alternative_suppliers = product_obj.suppliers[1:] if len(product_obj.suppliers) > 1 else []
+        trademark_risk = product_obj.trademark_risk
+        trend_direction = product_obj.trend_direction
+
     total_cost = best_supplier.unit_cost + best_supplier.shipping_cost
-    gross_margin = product_obj.recommended_price - total_cost
+    gross_margin = recommended_price - total_cost
     estimated_cpa = 8.0
     net_profit = gross_margin - estimated_cpa
-    
+
     return ProductBrief(
-        product_id=product_obj.id,
-        product_name=product_obj.name,
+        product_id=product.get("id", product_id),
+        product_name=product.get("name", "Unknown"),
         best_supplier=best_supplier,
-        alternative_suppliers=product_obj.suppliers[1:] if len(product_obj.suppliers) > 1 else [],
+        alternative_suppliers=alternative_suppliers,
         unit_cost=best_supplier.unit_cost,
         shipping_cost=best_supplier.shipping_cost,
         total_cost=total_cost,
-        recommended_price=product_obj.recommended_price,
+        recommended_price=recommended_price,
         gross_margin=gross_margin,
         estimated_ad_cpa=estimated_cpa,
         net_profit_per_unit=net_profit,
-        break_even_roas=round(product_obj.recommended_price / (total_cost + estimated_cpa), 2),
-        trademark_clear=not product_obj.trademark_risk,
-        supplier_verified=True,
+        break_even_roas=round(recommended_price / (total_cost + estimated_cpa), 2) if (total_cost + estimated_cpa) > 0 else 0,
+        trademark_clear=not trademark_risk,
+        supplier_verified=not is_daily,
         shipping_reasonable=True,
-        competition_acceptable=product_obj.active_fb_ads < 50,
-        trend_positive=product_obj.trend_direction == "up"
+        competition_acceptable=active_fb_ads < 50,
+        trend_positive=trend_direction == "up"
     )

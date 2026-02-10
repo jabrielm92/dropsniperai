@@ -60,7 +60,7 @@ class Product(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     category: str
-    image_url: str
+    image_url: Optional[str] = ""
     description: Optional[str] = None
     
     # Sourcing
