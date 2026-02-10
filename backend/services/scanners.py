@@ -126,6 +126,7 @@ class TikTokScanner:
                     except Exception as e:
                         logger.warning(f"TikTok tag scrape failed for #{tag}: {e}")
 
+        logger.info(f"TikTok scanner found {len(products)} products")
         return products[:8]
 
 
@@ -165,6 +166,7 @@ class AmazonScanner:
                             name_el = item.select_one(".zg-text-center-align, ._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y, .p13n-sc-truncate, a[href*='/dp/']")
                             price_el = item.select_one(".p13n-sc-price, ._cDEzb_p13n-sc-price_3mJ9Z, .a-price .a-offscreen")
                             rank_el = item.select_one(".zg-badge-text, ._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y")
+                            img_el = item.select_one("img[src]")
 
                             name = name_el.get_text(strip=True) if name_el else None
                             if not name or len(name) < 3:
@@ -172,6 +174,7 @@ class AmazonScanner:
 
                             price_text = price_el.get_text(strip=True) if price_el else "$0"
                             price = _parse_price(price_text)
+                            image_url = img_el.get("src", "") if img_el else ""
 
                             # Try to extract rank change percentage
                             rank_change = 0
@@ -185,6 +188,7 @@ class AmazonScanner:
                             products.append({
                                 "source": "amazon",
                                 "name": name[:80],  # Truncate long names
+                                "image_url": image_url,
                                 "trend_data": {
                                     "rank_change": rank_change,
                                     "category": cat_name,
@@ -197,6 +201,7 @@ class AmazonScanner:
                 except Exception as e:
                     logger.warning(f"Amazon scrape failed for {cat_name}: {e}")
 
+        logger.info(f"Amazon scanner found {len(products)} products")
         return products[:15]
 
 
@@ -235,17 +240,20 @@ class AliExpressScanner:
                                 price_matches = re.findall(r'"minPrice":"?(\d+\.?\d*)"?', text)
                                 order_matches = re.findall(r'"tradeCount":"?(\d+)"?', text)
                                 rating_matches = re.findall(r'"starRating":"?(\d+\.?\d*)"?', text)
+                                image_matches = re.findall(r'"imgUrl":"(https?://[^"]+)"', text)
 
                                 for i in range(min(len(json_matches), 8)):
                                     name = json_matches[i]
                                     price = float(price_matches[i]) if i < len(price_matches) else 0
                                     orders = int(order_matches[i]) if i < len(order_matches) else 0
                                     rating = float(rating_matches[i]) if i < len(rating_matches) else 0
+                                    image_url = image_matches[i] if i < len(image_matches) else ""
 
                                     if price > 0 and name:
                                         products.append({
                                             "source": "aliexpress",
                                             "name": name,
+                                            "image_url": image_url,
                                             "trend_data": {
                                                 "orders_30d": orders,
                                                 "price": price,
@@ -262,6 +270,7 @@ class AliExpressScanner:
                                 title_el = card.select_one(".multi--titleText--nXeOvyr, h3")
                                 price_el = card.select_one(".multi--price-sale--U-S0jtj, .search-card-e-price-main")
                                 orders_el = card.select_one(".multi--trade--Ktbl2jB, .search-card-e-review")
+                                img_el = card.select_one("img[src]")
 
                                 title = title_el.get_text(strip=True) if title_el else None
                                 if not title:
@@ -270,10 +279,12 @@ class AliExpressScanner:
                                 price = _parse_price(price_el.get_text(strip=True)) if price_el else 0
                                 orders_text = orders_el.get_text(strip=True) if orders_el else "0"
                                 orders = _parse_order_count(orders_text)
+                                image_url = img_el.get("src", "") if img_el else ""
 
                                 products.append({
                                     "source": "aliexpress",
                                     "name": title[:80],
+                                    "image_url": image_url,
                                     "trend_data": {
                                         "orders_30d": orders,
                                         "price": price,
@@ -287,6 +298,7 @@ class AliExpressScanner:
                 except Exception as e:
                     logger.warning(f"AliExpress scrape failed for '{term}': {e}")
 
+        logger.info(f"AliExpress scanner found {len(products)} products")
         return products[:15]
 
     async def find_suppliers(self, product_name: str) -> List[Dict[str, Any]]:
@@ -382,6 +394,7 @@ class GoogleTrendsScanner:
         except ImportError:
             logger.error("pytrends not installed - Google Trends scanner disabled")
 
+        logger.info(f"Google Trends scanner found {len(products)} products")
         return products[:10]
 
 
@@ -617,6 +630,7 @@ class ProductScoutEngine:
                 logger.warning(f"Scanner {source} returned error: {results[i]}")
                 source_stats[source] = 0
 
+        logger.info(f"Full scan complete: {len(all_products)} total products | Stats: {source_stats}")
         return {
             "total_products": len(all_products),
             "products": all_products,

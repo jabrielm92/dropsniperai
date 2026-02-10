@@ -9,14 +9,16 @@ import { Switch } from '../components/ui/switch';
 import { Slider } from '../components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
-import { 
-  ArrowLeft, Save, Filter, Bell, User, 
-  Loader2, Zap, Send, Mail, Bot, CheckCircle, XCircle, Key, Eye, EyeOff, Trash2
+import {
+  ArrowLeft, Save, Filter, Bell, User,
+  Loader2, Zap, Send, Mail, Bot, CheckCircle, XCircle, Key, Eye, EyeOff,
+  TrendingUp, AlertTriangle, BarChart3, Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { 
-  getFilterSettings, updateFilterSettings, getIntegrationsStatus,
-  getUserKeys, updateUserKeys, testTelegram, sendTelegramReport
+import {
+  getFilterSettings, updateFilterSettings,
+  getUserKeys, updateUserKeys, testTelegram, sendTelegramReport,
+  getNotificationPreferences, updateNotificationPreferences
 } from '../lib/api';
 
 export default function Settings() {
@@ -25,9 +27,10 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingKeys, setSavingKeys] = useState(false);
+  const [savingNotifs, setSavingNotifs] = useState(false);
   const [testingTelegram, setTestingTelegram] = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
-  
+
   const [filters, setFilters] = useState({
     max_source_cost: 15,
     min_sell_price: 35,
@@ -35,6 +38,13 @@ export default function Settings() {
     max_fb_ads: 50,
     max_shipping_days: 15,
     exclude_trademark_risk: true
+  });
+
+  const [notifPrefs, setNotifPrefs] = useState({
+    daily_report: true,
+    competition_alerts: true,
+    trend_spike_alerts: true,
+    scan_complete: true
   });
 
   const [userKeys, setUserKeys] = useState({
@@ -53,12 +63,14 @@ export default function Settings() {
 
   const fetchSettings = async () => {
     try {
-      const [filtersRes, keysRes] = await Promise.all([
+      const [filtersRes, keysRes, notifsRes] = await Promise.allSettled([
         getFilterSettings(),
-        getUserKeys()
+        getUserKeys(),
+        getNotificationPreferences()
       ]);
-      setFilters(filtersRes.data);
-      setKeysStatus(keysRes.data);
+      if (filtersRes.status === 'fulfilled') setFilters(filtersRes.value.data);
+      if (keysRes.status === 'fulfilled') setKeysStatus(keysRes.value.data);
+      if (notifsRes.status === 'fulfilled') setNotifPrefs(notifsRes.value.data);
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
@@ -70,11 +82,23 @@ export default function Settings() {
     setSaving(true);
     try {
       await updateFilterSettings(filters);
-      toast.success('Filter settings saved!');
+      toast.success('Filters saved! Next scan will use these criteria.');
     } catch (error) {
-      toast.error('Failed to save settings');
+      toast.error('Failed to save filters');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveNotifs = async () => {
+    setSavingNotifs(true);
+    try {
+      await updateNotificationPreferences(notifPrefs);
+      toast.success('Notification preferences saved!');
+    } catch (error) {
+      toast.error('Failed to save notification preferences');
+    } finally {
+      setSavingNotifs(false);
     }
   };
 
@@ -85,10 +109,9 @@ export default function Settings() {
       if (userKeys.openai_api_key) keysToUpdate.openai_api_key = userKeys.openai_api_key;
       if (userKeys.telegram_bot_token) keysToUpdate.telegram_bot_token = userKeys.telegram_bot_token;
       if (userKeys.telegram_chat_id) keysToUpdate.telegram_chat_id = userKeys.telegram_chat_id;
-      
+
       await updateUserKeys(keysToUpdate);
       toast.success('API keys saved securely!');
-      // Clear inputs and refresh status
       setUserKeys({ openai_api_key: '', telegram_bot_token: '', telegram_chat_id: '' });
       fetchSettings();
     } catch (error) {
@@ -126,6 +149,9 @@ export default function Settings() {
     }
   };
 
+  const telegramReady = keysStatus.has_telegram_token && keysStatus.telegram_chat_id;
+  const isElite = ['elite', 'agency', 'enterprise'].includes(user?.subscription_tier);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
@@ -137,260 +163,241 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
       {/* Header */}
-      <header className="border-b border-white/5 bg-[#0A0A0A]/80 backdrop-blur sticky top-0 z-50">
-        <div className="flex items-center justify-between px-6 py-4">
-          <Button 
-            variant="ghost" 
+      <header className="border-b border-white/[0.06] bg-[#0A0A0A]/90 backdrop-blur-xl sticky top-0 z-50">
+        <div className="flex items-center justify-between px-4 sm:px-6 h-14">
+          <Button
+            variant="ghost"
             onClick={() => navigate('/dashboard')}
-            className="text-muted-foreground hover:text-white"
+            className="text-muted-foreground hover:text-white gap-2 text-sm h-9"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            <ArrowLeft className="w-4 h-4" />
+            Dashboard
           </Button>
-          {user?.is_admin && (
-            <Button 
-              onClick={() => navigate('/admin')}
-              variant="outline"
-              className="border-primary/30 text-primary"
-            >
-              Admin Panel
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20">
+              <Zap className="w-3 h-3 text-primary" />
+              <span className="text-xs font-semibold text-primary capitalize">{user?.subscription_tier || 'Free'}</span>
+            </div>
+            {user?.is_admin && (
+              <Button
+                onClick={() => navigate('/admin')}
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-primary gap-1.5 text-xs h-8"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                Admin
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="p-6 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Settings</h1>
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+        <h1 className="text-2xl font-bold tracking-tight mb-6">Settings</h1>
 
         <Tabs defaultValue="api-keys">
-          <TabsList className="bg-[#121212] border border-white/5 mb-6">
-            <TabsTrigger value="api-keys" className="flex items-center gap-2">
-              <Key className="w-4 h-4" />
+          <TabsList className="bg-[#111] border border-white/[0.06] mb-6 h-10">
+            <TabsTrigger value="api-keys" className="flex items-center gap-1.5 text-xs">
+              <Key className="w-3.5 h-3.5" />
               API Keys
             </TabsTrigger>
-            <TabsTrigger value="filters" className="flex items-center gap-2">
-              <Filter className="w-4 h-4" />
+            <TabsTrigger value="filters" className="flex items-center gap-1.5 text-xs">
+              <Filter className="w-3.5 h-3.5" />
               Filters
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
+            <TabsTrigger value="notifications" className="flex items-center gap-1.5 text-xs">
+              <Bell className="w-3.5 h-3.5" />
               Notifications
             </TabsTrigger>
-            <TabsTrigger value="account" className="flex items-center gap-2">
-              <User className="w-4 h-4" />
+            <TabsTrigger value="account" className="flex items-center gap-1.5 text-xs">
+              <User className="w-3.5 h-3.5" />
               Account
             </TabsTrigger>
           </TabsList>
 
-          {/* API Keys Tab */}
+          {/* ─── API KEYS TAB ─── */}
           <TabsContent value="api-keys">
-            <div className="space-y-6">
-              {/* Status Overview */}
-              <Card className="bg-[#121212] border-white/5">
-                <CardHeader>
-                  <CardTitle>Your API Keys</CardTitle>
-                  <CardDescription>Configure your own API keys to power the AI features</CardDescription>
+            <div className="space-y-4">
+              {/* Status Cards */}
+              <Card className="bg-[#111] border-white/[0.06]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Integration Status</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* OpenAI Status */}
-                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                        <Bot className="w-5 h-5 text-green-500" />
+                <CardContent className="space-y-2">
+                  {/* OpenAI */}
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-emerald-400" />
                       </div>
                       <div>
-                        <p className="font-medium">OpenAI API Key</p>
-                        <p className="text-xs text-muted-foreground">
-                          {keysStatus.has_openai_key ? keysStatus.openai_key_masked : 'Not configured'}
+                        <p className="text-sm font-medium">OpenAI API Key</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {keysStatus.has_openai_key ? keysStatus.openai_key_masked : 'Required for AI scanning'}
                         </p>
                       </div>
                     </div>
-                    {keysStatus.has_openai_key ? (
-                      <Badge className="bg-green-500/20 text-green-500">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Not Set
-                      </Badge>
-                    )}
+                    <Badge className={`text-[10px] ${keysStatus.has_openai_key ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
+                      {keysStatus.has_openai_key ? (
+                        <><CheckCircle className="w-2.5 h-2.5 mr-1" />Connected</>
+                      ) : (
+                        <><XCircle className="w-2.5 h-2.5 mr-1" />Not Set</>
+                      )}
+                    </Badge>
                   </div>
 
-                  {/* Telegram Bot Status */}
-                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                        <Send className="w-5 h-5 text-blue-500" />
+                  {/* Telegram Bot */}
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                        <Send className="w-4 h-4 text-blue-400" />
                       </div>
                       <div>
-                        <p className="font-medium">Telegram Bot Token</p>
-                        <p className="text-xs text-muted-foreground">
-                          {keysStatus.has_telegram_token ? keysStatus.telegram_token_masked : 'Not configured'}
+                        <p className="text-sm font-medium">Telegram Bot</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {keysStatus.has_telegram_token ? keysStatus.telegram_token_masked : 'For daily reports & alerts'}
                         </p>
                       </div>
                     </div>
-                    {keysStatus.has_telegram_token ? (
-                      <Badge className="bg-blue-500/20 text-blue-500">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Not Set
-                      </Badge>
-                    )}
+                    <Badge className={`text-[10px] ${keysStatus.has_telegram_token ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
+                      {keysStatus.has_telegram_token ? (
+                        <><CheckCircle className="w-2.5 h-2.5 mr-1" />Connected</>
+                      ) : (
+                        <><XCircle className="w-2.5 h-2.5 mr-1" />Not Set</>
+                      )}
+                    </Badge>
                   </div>
 
-                  {/* Telegram Chat ID Status */}
-                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                        <User className="w-5 h-5 text-blue-500" />
+                  {/* Chat ID */}
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                        <User className="w-4 h-4 text-blue-400" />
                       </div>
                       <div>
-                        <p className="font-medium">Telegram Chat ID</p>
-                        <p className="text-xs text-muted-foreground">
-                          {keysStatus.telegram_chat_id || 'Not configured'}
+                        <p className="text-sm font-medium">Telegram Chat ID</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {keysStatus.telegram_chat_id || 'Your personal chat ID'}
                         </p>
                       </div>
                     </div>
-                    {keysStatus.telegram_chat_id ? (
-                      <Badge className="bg-blue-500/20 text-blue-500">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Set
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Not Set
-                      </Badge>
-                    )}
+                    <Badge className={`text-[10px] ${keysStatus.telegram_chat_id ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-white/[0.04] text-white/40 border border-white/[0.06]'}`}>
+                      {keysStatus.telegram_chat_id ? (
+                        <><CheckCircle className="w-2.5 h-2.5 mr-1" />Set</>
+                      ) : (
+                        <><XCircle className="w-2.5 h-2.5 mr-1" />Not Set</>
+                      )}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Add/Update Keys */}
-              <Card className="bg-[#121212] border-white/5">
-                <CardHeader>
-                  <CardTitle>Add or Update Keys</CardTitle>
-                  <CardDescription>Your keys are stored securely and only used for your scans</CardDescription>
+              {/* Key Inputs */}
+              <Card className="bg-[#111] border-white/[0.06]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Add or Update Keys</CardTitle>
+                  <CardDescription className="text-xs">Stored securely, only used for your scans</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* OpenAI Key Input */}
-                  <div className="space-y-2">
-                    <Label>OpenAI API Key</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
+                <CardContent className="space-y-5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">OpenAI API Key</Label>
+                    <p className="text-[11px] text-muted-foreground">
                       Get from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="text-primary hover:underline">platform.openai.com/api-keys</a>
                     </p>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Input
-                          type={showOpenAiKey ? "text" : "password"}
-                          placeholder="sk-..."
-                          value={userKeys.openai_api_key}
-                          onChange={(e) => setUserKeys({ ...userKeys, openai_api_key: e.target.value })}
-                          className="bg-[#0A0A0A] border-white/10 pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowOpenAiKey(!showOpenAiKey)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
-                        >
-                          {showOpenAiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
+                    <div className="relative">
+                      <Input
+                        type={showOpenAiKey ? "text" : "password"}
+                        placeholder="sk-..."
+                        value={userKeys.openai_api_key}
+                        onChange={(e) => setUserKeys({ ...userKeys, openai_api_key: e.target.value })}
+                        className="bg-[#0A0A0A] border-white/[0.08] pr-10 h-9 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOpenAiKey(!showOpenAiKey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+                      >
+                        {showOpenAiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
                   </div>
 
-                  {/* Telegram Bot Token Input */}
-                  <div className="space-y-2">
-                    <Label>Telegram Bot Token</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noopener" className="text-blue-500 hover:underline">@BotFather</a> on Telegram
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Telegram Bot Token</Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Create via <a href="https://t.me/BotFather" target="_blank" rel="noopener" className="text-blue-400 hover:underline">@BotFather</a> on Telegram
                     </p>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Input
-                          type={showTelegramToken ? "text" : "password"}
-                          placeholder="123456789:ABCdefGHI..."
-                          value={userKeys.telegram_bot_token}
-                          onChange={(e) => setUserKeys({ ...userKeys, telegram_bot_token: e.target.value })}
-                          className="bg-[#0A0A0A] border-white/10 pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowTelegramToken(!showTelegramToken)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
-                        >
-                          {showTelegramToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
+                    <div className="relative">
+                      <Input
+                        type={showTelegramToken ? "text" : "password"}
+                        placeholder="123456789:ABCdefGHI..."
+                        value={userKeys.telegram_bot_token}
+                        onChange={(e) => setUserKeys({ ...userKeys, telegram_bot_token: e.target.value })}
+                        className="bg-[#0A0A0A] border-white/[0.08] pr-10 h-9 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowTelegramToken(!showTelegramToken)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+                      >
+                        {showTelegramToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
                   </div>
 
-                  {/* Telegram Chat ID Input */}
-                  <div className="space-y-2">
-                    <Label>Telegram Chat ID</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Message <a href="https://t.me/userinfobot" target="_blank" rel="noopener" className="text-blue-500 hover:underline">@userinfobot</a> to get YOUR personal ID (not the bot's ID)
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Telegram Chat ID</Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Message <a href="https://t.me/userinfobot" target="_blank" rel="noopener" className="text-blue-400 hover:underline">@userinfobot</a> to get your ID
                     </p>
                     <Input
                       placeholder="123456789"
                       value={userKeys.telegram_chat_id}
                       onChange={(e) => setUserKeys({ ...userKeys, telegram_chat_id: e.target.value })}
-                      className="bg-[#0A0A0A] border-white/10"
+                      className="bg-[#0A0A0A] border-white/[0.08] h-9 text-sm"
                     />
-                    <p className="text-xs text-yellow-500">⚠️ After saving, you must START a conversation with your bot first (send /start to it)</p>
+                    <p className="text-[11px] text-amber-400/80">After saving, send /start to your bot first</p>
                   </div>
 
-                  <Button 
+                  <Button
                     onClick={handleSaveKeys}
                     disabled={savingKeys}
-                    className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+                    className="w-full bg-gradient-to-r from-primary to-emerald-500 text-black font-bold hover:opacity-90 h-9 text-sm"
                   >
-                    {savingKeys ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save API Keys
-                      </>
-                    )}
+                    {savingKeys ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save API Keys
                   </Button>
                 </CardContent>
               </Card>
 
               {/* Test Telegram */}
-              {keysStatus.has_telegram_token && keysStatus.telegram_chat_id && (
-                <Card className="bg-[#121212] border-blue-500/20">
-                  <CardContent className="p-6">
-                    <h3 className="font-bold mb-4 flex items-center gap-2">
-                      <Send className="w-5 h-5 text-blue-500" />
-                      Test Your Telegram Bot
+              {telegramReady && (
+                <Card className="bg-[#111] border-blue-500/15">
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
+                      <Send className="w-4 h-4 text-blue-400" />
+                      Test Telegram
                     </h3>
-                    <div className="flex gap-3">
-                      <Button 
+                    <div className="flex gap-2">
+                      <Button
                         onClick={handleTestTelegram}
                         disabled={testingTelegram}
                         variant="outline"
-                        className="flex-1 border-blue-500/30 text-blue-500 hover:bg-blue-500/10"
+                        size="sm"
+                        className="flex-1 border-blue-500/20 text-blue-400 hover:bg-blue-500/10 h-8 text-xs"
                       >
-                        {testingTelegram ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                        Send Test Message
+                        {testingTelegram ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1.5" />}
+                        Test Message
                       </Button>
-                      <Button 
+                      <Button
                         onClick={handleSendReport}
                         disabled={sendingReport}
-                        className="flex-1 bg-blue-500 hover:bg-blue-600"
+                        size="sm"
+                        className="flex-1 bg-blue-500 hover:bg-blue-600 h-8 text-xs"
                       >
-                        {sendingReport ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-                        Send Daily Report
+                        {sendingReport ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Mail className="w-3.5 h-3.5 mr-1.5" />}
+                        Send Report
                       </Button>
                     </div>
                   </CardContent>
@@ -399,88 +406,78 @@ export default function Settings() {
             </div>
           </TabsContent>
 
-          {/* Filters Tab */}
+          {/* ─── FILTERS TAB ─── */}
           <TabsContent value="filters">
-            <Card className="bg-[#121212] border-white/5">
-              <CardHeader>
-                <CardTitle>Product Filters</CardTitle>
-                <CardDescription>Configure criteria for the AI to filter products</CardDescription>
+            <Card className="bg-[#111] border-white/[0.06]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Product Filters</CardTitle>
+                <CardDescription className="text-xs">AI uses these to filter products during scans</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8">
+              <CardContent className="space-y-6">
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <Label>Maximum Source Cost</Label>
-                    <span className="font-mono text-primary">${filters.max_source_cost}</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-xs">Maximum Source Cost</Label>
+                    <span className="font-mono text-primary text-sm font-semibold">${filters.max_source_cost}</span>
                   </div>
                   <Slider
                     value={[filters.max_source_cost]}
                     onValueChange={([value]) => setFilters({ ...filters, max_source_cost: value })}
-                    max={50}
-                    min={5}
-                    step={1}
+                    max={50} min={5} step={1}
                   />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <Label>Minimum Sell Price</Label>
-                    <span className="font-mono text-primary">${filters.min_sell_price}</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-xs">Minimum Sell Price</Label>
+                    <span className="font-mono text-primary text-sm font-semibold">${filters.min_sell_price}</span>
                   </div>
                   <Slider
                     value={[filters.min_sell_price]}
                     onValueChange={([value]) => setFilters({ ...filters, min_sell_price: value })}
-                    max={100}
-                    min={20}
-                    step={5}
+                    max={100} min={20} step={5}
                   />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <Label>Minimum Margin %</Label>
-                    <span className="font-mono text-primary">{filters.min_margin_percent}%</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-xs">Minimum Margin %</Label>
+                    <span className="font-mono text-primary text-sm font-semibold">{filters.min_margin_percent}%</span>
                   </div>
                   <Slider
                     value={[filters.min_margin_percent]}
                     onValueChange={([value]) => setFilters({ ...filters, min_margin_percent: value })}
-                    max={90}
-                    min={30}
-                    step={5}
+                    max={90} min={30} step={5}
                   />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <Label>Maximum FB Ads</Label>
-                    <span className="font-mono text-primary">{filters.max_fb_ads}</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-xs">Maximum FB Ads (Competition)</Label>
+                    <span className="font-mono text-primary text-sm font-semibold">{filters.max_fb_ads}</span>
                   </div>
                   <Slider
                     value={[filters.max_fb_ads]}
                     onValueChange={([value]) => setFilters({ ...filters, max_fb_ads: value })}
-                    max={100}
-                    min={10}
-                    step={5}
+                    max={100} min={10} step={5}
                   />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <Label>Maximum Shipping Days</Label>
-                    <span className="font-mono text-primary">{filters.max_shipping_days} days</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-xs">Maximum Shipping Days</Label>
+                    <span className="font-mono text-primary text-sm font-semibold">{filters.max_shipping_days}d</span>
                   </div>
                   <Slider
                     value={[filters.max_shipping_days]}
                     onValueChange={([value]) => setFilters({ ...filters, max_shipping_days: value })}
-                    max={30}
-                    min={5}
-                    step={1}
+                    max={30} min={5} step={1}
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
                   <div>
-                    <Label>Exclude Trademark Risk</Label>
-                    <p className="text-xs text-muted-foreground mt-1">Filter out products with potential IP issues</p>
+                    <Label className="text-xs">Exclude Trademark Risk</Label>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Filter out products with potential IP issues</p>
                   </div>
                   <Switch
                     checked={filters.exclude_trademark_risk}
@@ -488,10 +485,10 @@ export default function Settings() {
                   />
                 </div>
 
-                <Button 
-                  onClick={handleSaveFilters} 
+                <Button
+                  onClick={handleSaveFilters}
                   disabled={saving}
-                  className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+                  className="w-full bg-gradient-to-r from-primary to-emerald-500 text-black font-bold hover:opacity-90 h-9 text-sm"
                 >
                   {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                   Save Filters
@@ -500,73 +497,151 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
-          {/* Notifications Tab */}
+          {/* ─── NOTIFICATIONS TAB ─── */}
           <TabsContent value="notifications">
-            <Card className="bg-[#121212] border-white/5">
-              <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>Notifications are sent via your Telegram bot when configured</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                  <div>
-                    <p className="font-medium">Daily Report via Telegram</p>
-                    <p className="text-xs text-muted-foreground mt-1">Sent automatically at 7:00 AM Eastern</p>
+            <div className="space-y-4">
+              <Card className="bg-[#111] border-white/[0.06]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Notification Preferences</CardTitle>
+                  <CardDescription className="text-xs">
+                    {telegramReady
+                      ? 'Notifications sent via your Telegram bot'
+                      : 'Configure Telegram in API Keys tab to enable notifications'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {/* Daily Report */}
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Mail className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Daily Report</p>
+                        <p className="text-[11px] text-muted-foreground">Automatic report at 7:00 AM Eastern</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={notifPrefs.daily_report}
+                      onCheckedChange={(checked) => setNotifPrefs({ ...notifPrefs, daily_report: checked })}
+                      disabled={!telegramReady}
+                    />
                   </div>
-                  <Badge className={keysStatus.has_telegram_token && keysStatus.telegram_chat_id ? 'bg-primary/20 text-primary' : 'bg-white/5 text-muted-foreground'}>
-                    {keysStatus.has_telegram_token && keysStatus.telegram_chat_id ? 'Active' : 'Setup Required'}
-                  </Badge>
+
+                  {/* Scan Complete */}
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Scan Complete</p>
+                        <p className="text-[11px] text-muted-foreground">Notify when a scan finishes</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={notifPrefs.scan_complete}
+                      onCheckedChange={(checked) => setNotifPrefs({ ...notifPrefs, scan_complete: checked })}
+                      disabled={!telegramReady}
+                    />
+                  </div>
+
+                  {/* Competition Alerts */}
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Competition Alerts</p>
+                        <p className="text-[11px] text-muted-foreground">When competitors add new products</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!isElite && (
+                        <Badge className="text-[10px] bg-white/[0.04] text-white/40 border border-white/[0.06]">Elite</Badge>
+                      )}
+                      <Switch
+                        checked={notifPrefs.competition_alerts}
+                        onCheckedChange={(checked) => setNotifPrefs({ ...notifPrefs, competition_alerts: checked })}
+                        disabled={!telegramReady || !isElite}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Trend Spike */}
+                  <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-violet-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Trend Spike Alerts</p>
+                        <p className="text-[11px] text-muted-foreground">When products surge in search interest</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!isElite && (
+                        <Badge className="text-[10px] bg-white/[0.04] text-white/40 border border-white/[0.06]">Elite</Badge>
+                      )}
+                      <Switch
+                        checked={notifPrefs.trend_spike_alerts}
+                        onCheckedChange={(checked) => setNotifPrefs({ ...notifPrefs, trend_spike_alerts: checked })}
+                        disabled={!telegramReady || !isElite}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Save + Info */}
+              {!telegramReady && (
+                <div className="p-3 bg-blue-500/[0.06] border border-blue-500/15 rounded-xl">
+                  <p className="text-xs text-blue-400">
+                    Configure your Telegram Bot Token and Chat ID in the <strong>API Keys</strong> tab to enable notifications.
+                  </p>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                  <div>
-                    <p className="font-medium">Competition Alerts</p>
-                    <p className="text-xs text-muted-foreground mt-1">Get notified when competitors add new products</p>
-                  </div>
-                  <Badge className="bg-white/5 text-muted-foreground">Elite Plan</Badge>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                  <div>
-                    <p className="font-medium">Trend Spike Alerts</p>
-                    <p className="text-xs text-muted-foreground mt-1">Alerts when tracked products surge in search interest</p>
-                  </div>
-                  <Badge className="bg-white/5 text-muted-foreground">Elite Plan</Badge>
-                </div>
-                {!(keysStatus.has_telegram_token && keysStatus.telegram_chat_id) && (
-                  <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                    <p className="text-sm text-blue-400">
-                      Configure your Telegram Bot Token and Chat ID in the <strong>API Keys</strong> tab to enable notifications.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              )}
+
+              <Button
+                onClick={handleSaveNotifs}
+                disabled={savingNotifs}
+                className="w-full bg-gradient-to-r from-primary to-emerald-500 text-black font-bold hover:opacity-90 h-9 text-sm"
+              >
+                {savingNotifs ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                Save Preferences
+              </Button>
+            </div>
           </TabsContent>
 
-          {/* Account Tab */}
+          {/* ─── ACCOUNT TAB ─── */}
           <TabsContent value="account">
-            <Card className="bg-[#121212] border-white/5">
-              <CardHeader>
-                <CardTitle>Account Information</CardTitle>
+            <Card className="bg-[#111] border-white/[0.06]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Account Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-muted-foreground">Name</Label>
-                  <p className="font-medium">{user?.name}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Email</Label>
-                  <p className="font-medium">{user?.email}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Subscription</Label>
-                  <p className="font-medium capitalize text-primary">{user?.subscription_tier || 'Free'}</p>
-                </div>
-                {user?.is_admin && (
+                <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
                   <div>
-                    <Label className="text-muted-foreground">Role</Label>
-                    <Badge className="bg-primary/20 text-primary">Admin</Badge>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Name</p>
+                    <p className="text-sm font-medium mt-0.5">{user?.name}</p>
                   </div>
-                )}
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Email</p>
+                    <p className="text-sm font-medium mt-0.5">{user?.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Subscription</p>
+                    <p className="text-sm font-medium mt-0.5 capitalize text-primary">{user?.subscription_tier || 'Free'}</p>
+                  </div>
+                  {user?.is_admin && (
+                    <Badge className="bg-primary/15 text-primary text-[10px] border border-primary/20">Admin</Badge>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

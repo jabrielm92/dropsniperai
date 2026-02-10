@@ -51,6 +51,8 @@ export const removeProductFromBoard = (boardId, productId) => api.delete(`/board
 // Settings
 export const getFilterSettings = () => api.get('/settings/filters');
 export const updateFilterSettings = (filters) => api.put('/settings/filters', filters);
+export const getNotificationPreferences = () => api.get('/settings/notifications');
+export const updateNotificationPreferences = (prefs) => api.put('/settings/notifications', prefs);
 
 // Categories & Stats
 export const getCategories = () => api.get('/categories');

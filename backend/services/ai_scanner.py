@@ -80,6 +80,7 @@ You MUST respond with a JSON object containing a "products" array."""
 For each product, provide enriched data:
 - name: Clean product name
 - source: Original source (tiktok/amazon/aliexpress/google_trends)
+- image_url: A direct URL to a real product image. Use the format https://www.google.com/search?tbm=isch&q=PRODUCT+NAME+product and replace PRODUCT+NAME with the URL-encoded product name. This is critical - every product MUST have an image_url.
 - estimated_views: Estimated viral reach (use trend_data if available)
 - source_cost: Estimated supplier cost from AliExpress (number, use trend_data.price if available)
 - recommended_price: Recommended selling price (3-4x source cost) (number)
@@ -104,6 +105,7 @@ You MUST respond with a JSON object containing a "products" array."""
 For each product provide:
 - name: Product name
 - source: Where it's trending (tiktok/amazon/aliexpress/google_trends)
+- image_url: A direct URL to a real product image. Use the format https://www.google.com/search?tbm=isch&q=PRODUCT+NAME+product and replace PRODUCT+NAME with the URL-encoded product name. This is critical - every product MUST have an image_url.
 - estimated_views: Estimated viral reach (number)
 - source_cost: Estimated cost from AliExpress/supplier (number)
 - recommended_price: Recommended selling price (number)
@@ -195,7 +197,7 @@ You MUST respond with a JSON object containing a "products" array."""
 {products_summary}
 
 Enrich each product with:
-- name, source ("{source}"), estimated_views, source_cost, recommended_price
+- name, source ("{source}"), image_url (use https://www.google.com/search?tbm=isch&q=PRODUCT+NAME+product format), estimated_views, source_cost, recommended_price
 - margin_percent, trend_score (1-100), overall_score (1-100), category
 - why_trending, saturation_level (low/medium/high), trend_direction (up/down/stable)
 {filter_instructions}
@@ -210,7 +212,7 @@ You MUST respond with a JSON object containing a "products" array."""
 Identify 5-8 trending products from {source}.
 {filter_instructions}
 
-For each: name, source ("{source}"), estimated_views, source_cost, recommended_price,
+For each: name, source ("{source}"), image_url (use https://www.google.com/search?tbm=isch&q=PRODUCT+NAME+product format), estimated_views, source_cost, recommended_price,
 margin_percent, trend_score (1-100), overall_score (1-100), category, trend_data, why_trending
 
 Return as JSON: {{"products": [...]}}"""
@@ -336,8 +338,13 @@ Return as JSON object."""
             return None
 
         try:
+            name = str(product.get("name", "Unknown"))[:100]
+            # Use image_url from scraper data or AI response
+            image_url = product.get("image_url", "")
+
             return {
-                "name": str(product.get("name", "Unknown"))[:100],
+                "name": name,
+                "image_url": image_url,
                 "source": str(product.get("source", "unknown")),
                 "estimated_views": int(product.get("estimated_views", 0) or 0),
                 "source_cost": float(product.get("source_cost", 0) or 0),

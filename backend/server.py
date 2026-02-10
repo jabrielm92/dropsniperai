@@ -254,6 +254,20 @@ async def update_filter_settings(filters: FilterSettings, user: User = Depends(g
     await db.users.update_one({"id": user.id}, {"$set": {"filters": filters.model_dump()}})
     return filters
 
+@api_router.get("/settings/notifications")
+async def get_notification_preferences(user: User = Depends(get_current_user)):
+    from models import NotificationPreferences
+    if user.notification_preferences:
+        return NotificationPreferences(**user.notification_preferences)
+    return NotificationPreferences()
+
+@api_router.put("/settings/notifications")
+async def update_notification_preferences(prefs: dict, user: User = Depends(get_current_user)):
+    from models import NotificationPreferences
+    validated = NotificationPreferences(**prefs)
+    await db.users.update_one({"id": user.id}, {"$set": {"notification_preferences": validated.model_dump()}})
+    return validated
+
 @api_router.get("/categories")
 async def get_categories(user: User = Depends(get_current_user)):
     categories = await db.products.distinct("category")
@@ -802,20 +816,32 @@ async def mark_alert_read(alert_id: str, user: User = Depends(get_current_user))
 @api_router.get("/saturation/overview")
 async def get_saturation_overview(user: User = Depends(get_current_user)):
     check_feature_access(user.subscription_tier, "saturation_radar")
-    products = await db.products.find({}, {"_id": 0}).to_list(100)
-    
+
+    # Get user's scanned products first, then fall back to seed products
+    products = await db.daily_products.find(
+        {"user_id": user.id, "is_active": True}, {"_id": 0}
+    ).to_list(100)
+    if not products:
+        products = await db.daily_products.find(
+            {"is_active": True}, {"_id": 0}
+        ).to_list(100)
+    if not products:
+        products = await db.products.find({}, {"_id": 0}).to_list(100)
+
     saturation_data = {"low": [], "medium": [], "high": []}
-    
+
     for product in products:
         level = product.get("saturation_level", "medium")
+        if level not in saturation_data:
+            level = "medium"
         saturation_data[level].append({
-            "id": product["id"],
-            "name": product["name"],
+            "id": product.get("id", ""),
+            "name": product.get("name", "Unknown"),
             "fb_ads": product.get("active_fb_ads", 0),
             "shopify_stores": product.get("shopify_stores", 0),
             "trend_direction": product.get("trend_direction", "stable")
         })
-    
+
     return {
         "overview": saturation_data,
         "stats": {
@@ -828,25 +854,35 @@ async def get_saturation_overview(user: User = Depends(get_current_user)):
 @api_router.get("/saturation/niches")
 async def get_niche_saturation(user: User = Depends(get_current_user)):
     check_feature_access(user.subscription_tier, "saturation_radar")
-    products = await db.products.find({}, {"_id": 0}).to_list(100)
-    
+
+    # Get user's scanned products first, then fall back to seed products
+    products = await db.daily_products.find(
+        {"user_id": user.id, "is_active": True}, {"_id": 0}
+    ).to_list(100)
+    if not products:
+        products = await db.daily_products.find(
+            {"is_active": True}, {"_id": 0}
+        ).to_list(100)
+    if not products:
+        products = await db.products.find({}, {"_id": 0}).to_list(100)
+
     niche_data = {}
     for product in products:
         category = product.get("category", "Other")
         if category not in niche_data:
             niche_data[category] = {"total_products": 0, "avg_fb_ads": 0, "avg_stores": 0, "saturation_score": 0}
-        
+
         niche_data[category]["total_products"] += 1
         niche_data[category]["avg_fb_ads"] += product.get("active_fb_ads", 0)
         niche_data[category]["avg_stores"] += product.get("shopify_stores", 0)
-    
+
     for category in niche_data:
         count = niche_data[category]["total_products"]
         if count > 0:
             niche_data[category]["avg_fb_ads"] = round(niche_data[category]["avg_fb_ads"] / count)
             niche_data[category]["avg_stores"] = round(niche_data[category]["avg_stores"] / count)
             niche_data[category]["saturation_score"] = min(100, (niche_data[category]["avg_fb_ads"] + niche_data[category]["avg_stores"]) // 3)
-    
+
     return niche_data
 
 # ========== TELEGRAM ==========
