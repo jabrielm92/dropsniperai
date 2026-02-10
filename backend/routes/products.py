@@ -8,6 +8,70 @@ from routes.deps import get_db, get_current_user
 
 router = APIRouter(prefix="/products", tags=["products"])
 
+@router.get("/today")
+async def get_today_products(user: User = Depends(get_current_user)):
+    """Get today's discovered products"""
+    db = get_db()
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # First try daily_products collection
+    products = await db.daily_products.find(
+        {"scan_date": today, "is_active": True},
+        {"_id": 0}
+    ).sort("overall_score", -1).limit(5).to_list(5)
+
+    # Fallback to seed products if no daily products yet
+    if not products:
+        products = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).limit(5).to_list(5)
+
+    return {"date": today, "products": products, "count": len(products)}
+
+@router.get("/history")
+async def get_product_history(
+    days: int = 30,
+    user: User = Depends(get_current_user)
+):
+    """Get archived products from past days"""
+    db = get_db()
+    dates = await db.daily_products.distinct("scan_date")
+    dates = sorted(dates, reverse=True)[:days]
+
+    history = []
+    for date in dates:
+        products = await db.daily_products.find(
+            {"scan_date": date},
+            {"_id": 0}
+        ).sort("overall_score", -1).to_list(10)
+
+        if products:
+            history.append({
+                "date": date,
+                "products": products,
+                "count": len(products)
+            })
+
+    # Include seed products as "all time" if no history
+    if not history:
+        seed_products = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).to_list(20)
+        history.append({
+            "date": "seed_data",
+            "products": seed_products,
+            "count": len(seed_products)
+        })
+
+    return {"history": history, "total_days": len(history)}
+
+@router.get("/archive/{date}")
+async def get_archived_products(date: str, user: User = Depends(get_current_user)):
+    """Get products from a specific date"""
+    db = get_db()
+    products = await db.daily_products.find(
+        {"scan_date": date},
+        {"_id": 0}
+    ).sort("overall_score", -1).to_list(20)
+
+    return {"date": date, "products": products, "count": len(products)}
+
 @router.get("", response_model=List[Product])
 async def get_products(
     category: Optional[str] = None,
