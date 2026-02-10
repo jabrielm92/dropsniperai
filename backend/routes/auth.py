@@ -2,7 +2,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone, timedelta
 import jwt
-from passlib.context import CryptContext
+import hashlib
+import bcrypt
 import os
 
 from models import User, UserCreate, UserLogin, UserResponse, TokenResponse
@@ -13,17 +14,20 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Admin email from environment
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'jabriel@arisolutionsinc.com')
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash password using bcrypt directly"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # Support legacy SHA256 hashes for existing users
-    import hashlib
+    """Verify password - supports both legacy SHA256 and bcrypt hashes"""
+    # Legacy SHA256 hashes are exactly 64 lowercase hex characters
     if len(hashed_password) == 64 and all(c in '0123456789abcdef' for c in hashed_password):
         return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
-    return pwd_context.verify(plain_password, hashed_password)
+    # Bcrypt hashes start with $2b$ or $2a$
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
 def create_token(user_id: str, secret: str) -> str:
     payload = {

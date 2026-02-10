@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Checkbox } from '../components/ui/checkbox';
-import { 
-  ArrowLeft, Copy, Download, Check, Rocket, Video, 
-  Target, Hash, DollarSign, ListChecks, Loader2
+import {
+  ArrowLeft, Copy, Download, Check, Rocket, Video,
+  Target, Hash, DollarSign, ListChecks, Loader2, AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getLaunchKit } from '../lib/api';
@@ -18,6 +18,7 @@ export default function LaunchKit() {
   const [kit, setKit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checklist, setChecklist] = useState([]);
+  const [tierBlocked, setTierBlocked] = useState(false);
 
   const fetchKit = useCallback(async () => {
     try {
@@ -25,8 +26,12 @@ export default function LaunchKit() {
       setKit(response.data);
       setChecklist(response.data.launch_checklist || []);
     } catch (error) {
-      toast.error('Failed to load launch kit');
-      navigate('/dashboard');
+      if (error.response?.status === 403) {
+        setTierBlocked(true);
+      } else {
+        toast.error('Failed to load launch kit');
+        navigate('/dashboard');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,6 +58,34 @@ export default function LaunchKit() {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (tierBlocked) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <Card className="bg-[#121212] border-white/5 max-w-md w-full mx-4">
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-yellow-500" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Sniper Feature</h2>
+            <p className="text-muted-foreground mb-6">
+              Launch Kit generation requires the Sniper plan or higher. Upgrade to generate ad copy, video scripts, and pricing strategies.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button variant="outline" onClick={() => navigate('/dashboard')} className="border-white/10">
+                Back to Dashboard
+              </Button>
+              <Link to="/pricing">
+                <Button className="bg-primary text-black font-bold hover:bg-primary/90">
+                  Upgrade Plan
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
