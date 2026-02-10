@@ -210,6 +210,11 @@ class ScanScheduler:
 
         for user in users:
             try:
+                # Check notification preferences
+                prefs = user.get("notification_preferences", {})
+                if prefs.get("daily_report") is False:
+                    logger.info(f"Skipping daily report for {user.get('email')} - disabled in preferences")
+                    continue
                 success = await self._send_user_report(user, today)
                 if success:
                     sent_count += 1

@@ -254,6 +254,20 @@ async def update_filter_settings(filters: FilterSettings, user: User = Depends(g
     await db.users.update_one({"id": user.id}, {"$set": {"filters": filters.model_dump()}})
     return filters
 
+@api_router.get("/settings/notifications")
+async def get_notification_preferences(user: User = Depends(get_current_user)):
+    from models import NotificationPreferences
+    if user.notification_preferences:
+        return NotificationPreferences(**user.notification_preferences)
+    return NotificationPreferences()
+
+@api_router.put("/settings/notifications")
+async def update_notification_preferences(prefs: dict, user: User = Depends(get_current_user)):
+    from models import NotificationPreferences
+    validated = NotificationPreferences(**prefs)
+    await db.users.update_one({"id": user.id}, {"$set": {"notification_preferences": validated.model_dump()}})
+    return validated
+
 @api_router.get("/categories")
 async def get_categories(user: User = Depends(get_current_user)):
     categories = await db.products.distinct("category")

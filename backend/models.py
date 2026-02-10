@@ -27,6 +27,13 @@ class User(BaseModel):
     telegram_chat_id: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     filters: Optional[Dict[str, Any]] = None
+    notification_preferences: Optional[Dict[str, Any]] = None
+
+class NotificationPreferences(BaseModel):
+    daily_report: bool = True
+    competition_alerts: bool = True
+    trend_spike_alerts: bool = True
+    scan_complete: bool = True
 
 class UserResponse(BaseModel):
     id: str
