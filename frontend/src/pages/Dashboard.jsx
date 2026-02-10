@@ -5,13 +5,14 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import SetupWizard from '../components/SetupWizard';
-import { 
+import {
   Zap, LogOut, Settings, TrendingUp, TrendingDown, Minus,
-  Target, AlertTriangle, Rocket, BarChart3, 
-  Package, Filter, Clock, ChevronRight, RefreshCw, Search, Shield, Sparkles, Play, Loader2
+  Target, AlertTriangle, Rocket, BarChart3,
+  Package, Filter, Clock, ChevronRight, RefreshCw, Search, Shield, Sparkles, Play, Loader2,
+  X, CheckCircle2, XCircle, Radio
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDailyReport, getTodayProducts, getStats, seedData, getUserKeys, runFullScan, getScanStatus } from '../lib/api';
+import { getDailyReport, getTodayProducts, getStats, seedData, getUserKeys, runFullScan, getScanStatus, getFullScanStreamUrl } from '../lib/api';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -26,6 +27,8 @@ export default function Dashboard() {
   const [showWizard, setShowWizard] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState(null);
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanSteps, setScanSteps] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -89,25 +92,51 @@ export default function Dashboard() {
     toast.success('Data refreshed!');
   };
 
-  const handleRunScan = async () => {
+  const handleRunScan = () => {
     if (!scanStatus?.ai_scanning_available) {
       toast.error('Add your OpenAI API key in Settings first');
       navigate('/settings');
       return;
     }
-    
+
     setScanning(true);
-    try {
-      const response = await runFullScan();
-      toast.success(`Scan complete! Found ${response.data.total_products} products`);
-      // Refresh products after scan
-      const productsRes = await getTodayProducts();
-      setProducts(productsRes.data.products || productsRes.data);
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Scan failed');
-    } finally {
+    setShowScanModal(true);
+    setScanSteps([]);
+
+    const url = getFullScanStreamUrl();
+    const eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        setScanSteps(prev => {
+          const existing = prev.findIndex(s => s.step === data.step);
+          if (existing >= 0) {
+            const updated = [...prev];
+            updated[existing] = data;
+            return updated;
+          }
+          return [...prev, data];
+        });
+
+        if (data.step === 'complete') {
+          eventSource.close();
+          setScanning(false);
+          toast.success(`Scan complete! Found ${data.total_products} products`);
+          // Refresh dashboard data
+          fetchData();
+        }
+      } catch (e) {
+        console.error('SSE parse error:', e);
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
       setScanning(false);
-    }
+      setScanSteps(prev => [...prev, { step: 'error', status: 'error', message: 'Connection lost. Scan may still be running.' }]);
+    };
   };
 
   const getTrendIcon = (direction) => {
@@ -194,9 +223,23 @@ export default function Dashboard() {
           </Button>
           
           <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            {scanSteps.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowScanModal(true)}
+                className={`relative text-muted-foreground hover:text-primary ${scanning ? 'text-primary' : ''}`}
+                title="Scanner Progress"
+              >
+                <Radio className={`w-5 h-5 ${scanning ? 'animate-pulse' : ''}`} />
+                {scanning && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full animate-ping" />
+                )}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleRefresh}
               disabled={seeding}
               className="text-muted-foreground hover:text-white"
@@ -489,6 +532,95 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Scanner Progress Modal */}
+      {showScanModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${scanning ? 'bg-primary/20' : 'bg-primary/10'}`}>
+                  <Target className={`w-5 h-5 text-primary ${scanning ? 'animate-pulse' : ''}`} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">Scanner Progress</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {scanning ? 'Real-time scraping in progress...' : 'Scan complete'}
+                  </p>
+                </div>
+              </div>
+              {!scanning && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowScanModal(false)}
+                  className="text-muted-foreground hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              )}
+            </div>
+
+            <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
+              {scanSteps.map((step, i) => (
+                <div
+                  key={step.step + i}
+                  className={`flex items-start gap-3 p-3 rounded-lg border ${
+                    step.status === 'scanning' ? 'border-primary/30 bg-primary/5' :
+                    step.status === 'done' ? 'border-white/5 bg-white/[0.02]' :
+                    step.status === 'error' ? 'border-red-500/20 bg-red-500/5' :
+                    'border-white/5'
+                  }`}
+                >
+                  <div className="mt-0.5">
+                    {step.status === 'scanning' && (
+                      <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                    )}
+                    {step.status === 'done' && (
+                      <CheckCircle2 className="w-4 h-4 text-primary" />
+                    )}
+                    {step.status === 'error' && (
+                      <XCircle className="w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium ${
+                      step.status === 'scanning' ? 'text-primary' :
+                      step.status === 'error' ? 'text-red-400' :
+                      'text-white'
+                    }`}>
+                      {step.message}
+                    </p>
+                    {step.count !== undefined && step.status === 'done' && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {step.count} {step.count === 1 ? 'result' : 'results'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {scanning && scanSteps.length === 0 && (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                  <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                  <p className="text-sm text-primary font-medium">Initializing scanner...</p>
+                </div>
+              )}
+            </div>
+
+            {!scanning && scanSteps.some(s => s.step === 'complete') && (
+              <div className="p-5 border-t border-white/5">
+                <Button
+                  onClick={() => setShowScanModal(false)}
+                  className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+                >
+                  View Results
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

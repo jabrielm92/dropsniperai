@@ -61,6 +61,10 @@ export const seedData = () => api.post('/seed');
 
 // Scanners
 export const runFullScan = () => api.post('/scan/full');
+export const getFullScanStreamUrl = () => {
+  const token = localStorage.getItem('token');
+  return `${API_URL}/api/scan/full/stream?token=${encodeURIComponent(token)}`;
+};
 export const scanSource = (source) => api.get(`/scan/sources/${source}`);
 export const analyzeProduct = (productName) => api.post(`/scan/analyze/${productName}`);
 export const getScanStatus = () => api.get('/scan/status');
