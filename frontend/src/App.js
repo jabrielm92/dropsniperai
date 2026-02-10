@@ -11,6 +11,9 @@ import Pricing from "./pages/Pricing";
 import Competitors from "./pages/Competitors";
 import Saturation from "./pages/Saturation";
 import Scanner from "./pages/Scanner";
+import Products from "./pages/Products";
+import LaunchKits from "./pages/LaunchKits";
+import Boards from "./pages/Boards";
 import Admin from "./pages/Admin";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -99,6 +102,30 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Scanner />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/products"
+        element={
+          <ProtectedRoute>
+            <Products />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/launch-kits"
+        element={
+          <ProtectedRoute>
+            <LaunchKits />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/boards"
+        element={
+          <ProtectedRoute>
+            <Boards />
           </ProtectedRoute>
         }
       />

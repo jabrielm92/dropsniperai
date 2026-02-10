@@ -388,7 +388,7 @@ export default function Dashboard() {
 
         {/* ─── STATS ROW ─── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card className="bg-[#111] border-white/[0.06] hover:border-primary/20 transition-colors group">
+          <Card className="bg-[#111] border-white/[0.06] hover:border-primary/20 transition-colors group cursor-pointer" onClick={() => navigate('/products')}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center group-hover:from-primary/30 transition-all">
                 <Package className="w-5 h-5 text-primary" />
@@ -399,7 +399,7 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-[#111] border-white/[0.06] hover:border-blue-500/20 transition-colors group">
+          <Card className="bg-[#111] border-white/[0.06] hover:border-blue-500/20 transition-colors group cursor-pointer" onClick={() => navigate('/launch-kits')}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/5 flex items-center justify-center group-hover:from-blue-500/30 transition-all">
                 <Rocket className="w-5 h-5 text-blue-400" />
@@ -410,7 +410,7 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-[#111] border-white/[0.06] hover:border-amber-500/20 transition-colors group">
+          <Card className="bg-[#111] border-white/[0.06] hover:border-amber-500/20 transition-colors group cursor-pointer" onClick={() => navigate('/boards')}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center group-hover:from-amber-500/30 transition-all">
                 <BarChart3 className="w-5 h-5 text-amber-400" />
@@ -421,7 +421,7 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-[#111] border-white/[0.06] hover:border-purple-500/20 transition-colors group">
+          <Card className="bg-[#111] border-white/[0.06] hover:border-purple-500/20 transition-colors group cursor-pointer" onClick={() => navigate('/settings')}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-500/5 flex items-center justify-center group-hover:from-purple-500/30 transition-all">
                 <Zap className="w-5 h-5 text-purple-400" />
@@ -499,7 +499,7 @@ export default function Dashboard() {
               variant="ghost"
               size="sm"
               className="text-muted-foreground hover:text-primary gap-1 text-xs h-8"
-              onClick={() => navigate('/scanner')}
+              onClick={() => navigate('/products')}
             >
               View All
               <ChevronRight className="w-3.5 h-3.5" />
@@ -527,7 +527,7 @@ export default function Dashboard() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {products.map((product, index) => (
+              {products.slice(0, 5).map((product, index) => (
                 <Card
                   key={product.id || index}
                   className={`bg-[#111] border-white/[0.06] hover:${getScoreBorder(product.overall_score)} cursor-pointer overflow-hidden group transition-all duration-200 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5`}
@@ -733,7 +733,7 @@ export default function Dashboard() {
             {!scanning && scanSteps.length > 0 && (
               <div className="px-5 py-4 border-t border-white/[0.06]">
                 <Button
-                  onClick={() => { setShowActivityModal(false); navigate('/scanner'); }}
+                  onClick={() => { setShowActivityModal(false); navigate('/products'); }}
                   className="w-full bg-gradient-to-r from-primary to-emerald-500 text-black font-bold hover:opacity-90 transition-opacity h-10"
                 >
                   View Results
