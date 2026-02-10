@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { 
+import {
   Zap, Check, X, Clock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +13,15 @@ import { PublicHeader, PublicFooter } from '../components/PublicLayout';
 
 export default function Pricing() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const signupToastShown = useRef(false);
+
+  useEffect(() => {
+    if (searchParams.get('signup') === 'true' && user && !signupToastShown.current) {
+      signupToastShown.current = true;
+      toast.success('Account created! Choose a plan to get started, or go to your dashboard.', { duration: 6000 });
+    }
+  }, [searchParams, user]);
 
   const handleSubscribe = async (tier) => {
     if (!user) {
@@ -125,6 +135,13 @@ export default function Pricing() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Start with a 24-hour free trial. Cancel anytime.
           </p>
+          {user && searchParams.get('signup') === 'true' && (
+            <Link to="/dashboard">
+              <Button variant="outline" className="mt-4 border-primary/30 text-primary hover:bg-primary/10">
+                Skip to Dashboard (Free Tier)
+              </Button>
+            </Link>
+          )}
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">

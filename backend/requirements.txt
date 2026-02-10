@@ -30,10 +30,13 @@ requests>=2.31.0
 # Google Trends
 pytrends>=4.9.0
 
-# AI Browser Agent
-browser-use>=0.11.0
-langchain-openai>=0.1.0
-playwright>=1.40.0
+# AI / OpenAI
+openai>=1.0.0
+
+# AI Browser Agent (optional - install separately if needed)
+# browser-use>=0.11.0
+# langchain-openai>=0.1.0
+# playwright>=1.40.0
 
 # Scheduling
 APScheduler>=3.10.0

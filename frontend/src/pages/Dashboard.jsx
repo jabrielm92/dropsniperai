@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -16,6 +16,8 @@ import { getDailyReport, getTodayProducts, getStats, seedData, getUserKeys, runF
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const upgradeToastShown = useRef(false);
   const [report, setReport] = useState(null);
   const [products, setProducts] = useState([]);
   const [stats, setStats] = useState(null);
@@ -58,6 +60,14 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (searchParams.get('upgraded') === 'true' && !upgradeToastShown.current) {
+      upgradeToastShown.current = true;
+      toast.success('Subscription activated! Welcome to DropSniper AI.');
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleLogout = () => {
     logout();
