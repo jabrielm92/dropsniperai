@@ -147,7 +147,7 @@ export default function Products() {
               >
                 {/* Image */}
                 <div className="relative h-40 overflow-hidden">
-                  {product.image_url ? (
+                  {product.image_url && !product.image_url.includes('google.com/search') ? (
                     <img
                       src={product.image_url}
                       alt={product.name}
@@ -157,7 +157,7 @@ export default function Products() {
                   ) : null}
                   <div
                     className="w-full h-full bg-gradient-to-br from-white/[0.04] to-white/[0.01] flex items-center justify-center"
-                    style={{ display: product.image_url ? 'none' : 'flex' }}
+                    style={{ display: (product.image_url && !product.image_url.includes('google.com/search')) ? 'none' : 'flex' }}
                   >
                     <div className="text-center px-6">
                       <Package className="w-7 h-7 mx-auto mb-2 text-white/20" />

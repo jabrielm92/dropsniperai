@@ -14,15 +14,22 @@ async def get_today_products(user: User = Depends(get_current_user)):
     db = get_db()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    # First try daily_products collection
+    # First try user's daily_products for today
     products = await db.daily_products.find(
-        {"scan_date": today, "is_active": True},
+        {"scan_date": today, "is_active": True, "user_id": user.id},
         {"_id": 0}
-    ).sort("overall_score", -1).limit(5).to_list(5)
+    ).sort("overall_score", -1).to_list(100)
+
+    # Fallback: any daily_products for today (from scheduler)
+    if not products:
+        products = await db.daily_products.find(
+            {"scan_date": today, "is_active": True},
+            {"_id": 0}
+        ).sort("overall_score", -1).to_list(100)
 
     # Fallback to seed products if no daily products yet
     if not products:
-        products = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).limit(5).to_list(5)
+        products = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).to_list(50)
 
     return {"date": today, "products": products, "count": len(products)}
 
@@ -31,35 +38,27 @@ async def get_product_history(
     days: int = 30,
     user: User = Depends(get_current_user)
 ):
-    """Get archived products from past days"""
+    """Get all products from past N days as a flat list"""
     db = get_db()
-    dates = await db.daily_products.distinct("scan_date")
-    dates = sorted(dates, reverse=True)[:days]
 
-    history = []
-    for date in dates:
+    # Get all daily_products for this user from past N days
+    products = await db.daily_products.find(
+        {"user_id": user.id},
+        {"_id": 0}
+    ).sort("overall_score", -1).to_list(500)
+
+    # Fallback: any daily_products
+    if not products:
         products = await db.daily_products.find(
-            {"scan_date": date},
+            {},
             {"_id": 0}
-        ).sort("overall_score", -1).to_list(10)
+        ).sort("overall_score", -1).to_list(200)
 
-        if products:
-            history.append({
-                "date": date,
-                "products": products,
-                "count": len(products)
-            })
+    # Fallback to seed products
+    if not products:
+        products = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).to_list(50)
 
-    # Include seed products as "all time" if no history
-    if not history:
-        seed_products = await db.products.find({}, {"_id": 0}).sort("overall_score", -1).to_list(20)
-        history.append({
-            "date": "seed_data",
-            "products": seed_products,
-            "count": len(seed_products)
-        })
-
-    return {"history": history, "total_days": len(history)}
+    return {"products": products, "count": len(products)}
 
 @router.get("/archive/{date}")
 async def get_archived_products(date: str, user: User = Depends(get_current_user)):

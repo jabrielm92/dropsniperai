@@ -132,14 +132,15 @@ export default function Dashboard() {
         });
 
         // Update running stats based on step data
+        const sourceSteps = ['tiktok', 'amazon', 'aliexpress', 'google_trends'];
         setScanStats(prev => {
           const next = { ...prev };
           if (data.status === 'done' && data.count !== undefined) {
-            if (data.step?.includes('scraping') || data.step?.includes('scan')) {
+            if (sourceSteps.includes(data.step)) {
+              // Source scan completed - add to scraped count
               next.scraped = prev.scraped + (data.count || 0);
-            } else if (data.step?.includes('enrich') || data.step?.includes('ai')) {
+            } else if (data.step === 'ai_enrichment') {
               next.enriched = data.count || prev.enriched;
-            } else if (data.step?.includes('validat')) {
               next.validated = data.count || prev.validated;
             }
           }
@@ -536,7 +537,7 @@ export default function Dashboard() {
                 >
                   {/* Image / Placeholder */}
                   <div className="relative h-40 overflow-hidden">
-                    {product.image_url ? (
+                    {product.image_url && !product.image_url.includes('google.com/search') ? (
                       <img
                         src={product.image_url}
                         alt={product.name}
@@ -546,7 +547,7 @@ export default function Dashboard() {
                     ) : null}
                     <div
                       className="w-full h-full bg-gradient-to-br from-white/[0.04] to-white/[0.01] flex items-center justify-center"
-                      style={{ display: product.image_url ? 'none' : 'flex' }}
+                      style={{ display: (product.image_url && !product.image_url.includes('google.com/search')) ? 'none' : 'flex' }}
                     >
                       <div className="text-center px-6">
                         <Package className="w-7 h-7 mx-auto mb-2 text-white/20" />
