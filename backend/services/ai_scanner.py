@@ -5,11 +5,67 @@ Combines real web scraping data with AI analysis for enrichment and scoring.
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
+from urllib.parse import quote_plus
 from openai import AsyncOpenAI
+import httpx
 
 logger = logging.getLogger(__name__)
+
+# Headers for image fetching
+_IMAGE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+
+async def _fetch_product_image(product_name: str) -> str:
+    """Search AliExpress for a product and return a real image URL."""
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            url = f"https://www.aliexpress.com/w/wholesale-{quote_plus(product_name)}.html"
+            resp = await client.get(url, headers=_IMAGE_HEADERS)
+            if resp.status_code == 200:
+                text = resp.text
+                # Extract image URLs from script data
+                img_matches = re.findall(r'"imgUrl"\s*:\s*"(https?://[^"]+\.(?:jpg|png|webp)[^"]*)"', text)
+                if img_matches:
+                    return img_matches[0]
+                # Fallback: extract from img tags
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(text, "html.parser")
+                for img in soup.select("img[src*='alicdn.com'], img[src*='ae01.alicdn']"):
+                    src = img.get("src", "")
+                    if src and ("jpg" in src or "png" in src or "webp" in src):
+                        if src.startswith("//"):
+                            src = "https:" + src
+                        return src
+    except Exception as e:
+        logger.debug(f"Image fetch failed for '{product_name}': {e}")
+    return ""
+
+
+async def _enrich_images(products: List[Dict]) -> List[Dict]:
+    """Fetch real images for products that don't have valid image URLs."""
+    async def _enrich_one(p):
+        img = p.get("image_url", "")
+        if not img or "google.com/search" in img or len(img) < 10:
+            real_img = await _fetch_product_image(p.get("name", ""))
+            if real_img:
+                p["image_url"] = real_img
+        return p
+
+    # Fetch images concurrently (max 5 at a time)
+    semaphore = asyncio.Semaphore(5)
+    async def _limited(p):
+        async with semaphore:
+            return await _enrich_one(p)
+
+    results = await asyncio.gather(*[_limited(p) for p in products], return_exceptions=True)
+    return [r for r in results if isinstance(r, dict)]
 
 
 class AIProductScanner:
@@ -80,7 +136,7 @@ You MUST respond with a JSON object containing a "products" array."""
 For each product, provide enriched data:
 - name: Clean product name
 - source: Original source (tiktok/amazon/aliexpress/google_trends)
-- image_url: A direct URL to a real product image. Use the format https://www.google.com/search?tbm=isch&q=PRODUCT+NAME+product and replace PRODUCT+NAME with the URL-encoded product name. This is critical - every product MUST have an image_url.
+- image_url: Keep the original image_url from the scraped data if available, otherwise leave empty
 - estimated_views: Estimated viral reach (use trend_data if available)
 - source_cost: Estimated supplier cost from AliExpress (number, use trend_data.price if available)
 - recommended_price: Recommended selling price (3-4x source cost) (number)
@@ -105,7 +161,7 @@ You MUST respond with a JSON object containing a "products" array."""
 For each product provide:
 - name: Product name
 - source: Where it's trending (tiktok/amazon/aliexpress/google_trends)
-- image_url: A direct URL to a real product image. Use the format https://www.google.com/search?tbm=isch&q=PRODUCT+NAME+product and replace PRODUCT+NAME with the URL-encoded product name. This is critical - every product MUST have an image_url.
+- image_url: Keep the original image_url from the scraped data if available, otherwise leave empty
 - estimated_views: Estimated viral reach (number)
 - source_cost: Estimated cost from AliExpress/supplier (number)
 - recommended_price: Recommended selling price (number)
@@ -133,6 +189,9 @@ Return as JSON: {{"products": [...]}}"""
                     cleaned["discovered_at"] = datetime.now(timezone.utc).isoformat()
                     cleaned["ai_enriched"] = True
                     validated.append(cleaned)
+
+            # Fetch real images from AliExpress for products missing images
+            validated = await _enrich_images(validated)
 
             return {
                 "success": True,
@@ -197,7 +256,7 @@ You MUST respond with a JSON object containing a "products" array."""
 {products_summary}
 
 Enrich each product with:
-- name, source ("{source}"), image_url (use https://www.google.com/search?tbm=isch&q=PRODUCT+NAME+product format), estimated_views, source_cost, recommended_price
+- name, source ("{source}"), image_url (keep from scraped data if available, otherwise leave empty),estimated_views, source_cost, recommended_price
 - margin_percent, trend_score (1-100), overall_score (1-100), category
 - why_trending, saturation_level (low/medium/high), trend_direction (up/down/stable)
 {filter_instructions}
@@ -212,7 +271,7 @@ You MUST respond with a JSON object containing a "products" array."""
 Identify 5-8 trending products from {source}.
 {filter_instructions}
 
-For each: name, source ("{source}"), image_url (use https://www.google.com/search?tbm=isch&q=PRODUCT+NAME+product format), estimated_views, source_cost, recommended_price,
+For each: name, source ("{source}"), image_url (keep from scraped data if available, otherwise leave empty),estimated_views, source_cost, recommended_price,
 margin_percent, trend_score (1-100), overall_score (1-100), category, trend_data, why_trending
 
 Return as JSON: {{"products": [...]}}"""
@@ -224,6 +283,9 @@ Return as JSON: {{"products": [...]}}"""
             for p in products:
                 p["discovered_at"] = datetime.now(timezone.utc).isoformat()
                 p["ai_enriched"] = True
+
+            # Fetch real images for products missing them
+            products = await _enrich_images(products)
 
             return {
                 "success": True,

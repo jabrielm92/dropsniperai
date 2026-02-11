@@ -535,25 +535,20 @@ export default function Dashboard() {
                   onClick={() => navigate(`/product/${product.id}`)}
                   data-testid={`product-card-${index}`}
                 >
-                  {/* Image / Placeholder */}
-                  <div className="relative h-40 overflow-hidden">
-                    {product.image_url && !product.image_url.includes('google.com/search') ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                      />
-                    ) : null}
-                    <div
-                      className="w-full h-full bg-gradient-to-br from-white/[0.04] to-white/[0.01] flex items-center justify-center"
-                      style={{ display: (product.image_url && !product.image_url.includes('google.com/search')) ? 'none' : 'flex' }}
-                    >
-                      <div className="text-center px-6">
-                        <Package className="w-7 h-7 mx-auto mb-2 text-white/20" />
-                        <p className="text-xs text-white/40 line-clamp-2">{product.name}</p>
+                  {/* Product Image */}
+                  <div className="relative h-40 overflow-hidden bg-gradient-to-br from-primary/5 via-[#111] to-blue-500/5">
+                    <img
+                      src={product.image_url || ''}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                      style={{ display: product.image_url && !product.image_url.includes('google.com/search') ? 'block' : 'none' }}
+                    />
+                    {(!product.image_url || product.image_url.includes('google.com/search')) && (
+                      <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <p className="text-sm text-white/30 text-center font-medium line-clamp-3">{product.name}</p>
                       </div>
-                    </div>
+                    )}
 
                     {/* Score badge */}
                     <div className="absolute top-2.5 right-2.5">
