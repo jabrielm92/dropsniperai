@@ -627,26 +627,40 @@ Return as JSON: {{"products": [...]}}"""
 
 @api_router.get("/scan/sources/{source}")
 async def scan_single_source(source: str, user: User = Depends(get_current_user)):
-    """Scan a single data source with AI"""
+    """Scan a single data source with AI and save results"""
     if not user.openai_api_key:
         raise HTTPException(
             status_code=400,
             detail="OpenAI API key required. Add your key in Settings."
         )
-    
+
     valid_sources = ["tiktok", "amazon", "aliexpress", "google_trends"]
     if source not in valid_sources:
         raise HTTPException(status_code=400, detail=f"Invalid source. Must be one of: {valid_sources}")
-    
+
     from services.ai_scanner import create_scanner
-    
+    import uuid as _uuid
+
     filters = user.filters if user.filters else {}
     scanner = create_scanner(user.openai_api_key)
     result = await scanner.scan_source(source, filters)
-    
+
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error", "Scan failed"))
-    
+
+    # Save products to daily_products so they appear on dashboard and products page
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    products = result.get("products", [])
+    for product in products:
+        product_doc = {
+            "id": str(_uuid.uuid4()),
+            "user_id": user.id,
+            "scan_date": today,
+            "is_active": True,
+            **product
+        }
+        await db.daily_products.insert_one(product_doc)
+
     return result
 
 @api_router.post("/scan/analyze/{product_name}")

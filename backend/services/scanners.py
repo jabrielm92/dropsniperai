@@ -58,8 +58,8 @@ class TikTokScanner:
                     self.HASHTAG_API,
                     params={
                         "page": 1,
-                        "limit": 20,
-                        "period": 7,  # last 7 days
+                        "limit": 50,
+                        "period": 7,
                         "country_code": "US",
                         "sort_by": "popular",
                     },
@@ -70,13 +70,19 @@ class TikTokScanner:
                 )
                 if resp.status_code == 200:
                     data = resp.json()
+                    # Broader keyword matching for product-related hashtags
+                    product_kw = [
+                        "buy", "find", "product", "gadget", "must", "hack", "deal",
+                        "clean", "home", "kitchen", "beauty", "fitness", "tech", "gift",
+                        "amazon", "shop", "unbox", "review", "haul", "worth", "best",
+                        "tool", "organiz", "storage", "lamp", "light", "phone", "car",
+                    ]
                     for item in data.get("data", {}).get("list", []):
                         name = item.get("hashtag_name", "")
-                        # Filter for product-related hashtags
-                        if any(kw in name.lower() for kw in ["buy", "find", "product", "gadget", "must", "hack", "deal"]):
+                        if any(kw in name.lower() for kw in product_kw):
                             products.append({
                                 "source": "tiktok",
-                                "name": name.replace("#", "").title(),
+                                "name": name.replace("#", "").replace("_", " ").title(),
                                 "trend_data": {
                                     "hashtag": f"#{name}",
                                     "views": item.get("publish_cnt", 0),
@@ -88,7 +94,7 @@ class TikTokScanner:
             except Exception as e:
                 logger.warning(f"TikTok Creative Center API failed: {e}")
 
-            # Fallback: scrape TikTok search for product hashtags
+            # Fallback: scrape TikTok tag pages
             if not products:
                 for tag in product_hashtags[:4]:
                     try:
@@ -98,36 +104,45 @@ class TikTokScanner:
                         )
                         if resp.status_code == 200:
                             soup = BeautifulSoup(resp.text, "html.parser")
-                            # Extract view count from meta tags
                             meta = soup.find("meta", {"property": "og:description"})
                             view_text = meta.get("content", "") if meta else ""
                             views = _parse_view_count(view_text)
 
-                            # Extract product names from video descriptions via JSON-LD
-                            scripts = soup.find_all("script", {"type": "application/ld+json"})
-                            for script in scripts[:3]:
+                            # Try JSON-LD scripts
+                            for script in soup.find_all("script", {"type": "application/ld+json"})[:5]:
                                 try:
                                     ld = json.loads(script.string or "{}")
-                                    desc = ld.get("description", "")
+                                    desc = ld.get("description", "") or ld.get("name", "")
                                     if desc and len(desc) > 10:
                                         products.append({
                                             "source": "tiktok",
                                             "name": _extract_product_name(desc, tag),
-                                            "trend_data": {
-                                                "hashtag": f"#{tag}",
-                                                "views": views,
-                                                "growth_rate": 0,
-                                            },
+                                            "trend_data": {"hashtag": f"#{tag}", "views": views, "growth_rate": 0},
                                             "discovered_at": datetime.now(timezone.utc).isoformat(),
                                         })
                                 except (json.JSONDecodeError, AttributeError):
                                     pass
-                        await asyncio.sleep(1)  # Rate limit
+
+                            # Also try __UNIVERSAL_DATA_FOR_REHYDRATION__ for video descriptions
+                            for script in soup.find_all("script"):
+                                text = script.string or ""
+                                if "__UNIVERSAL_DATA_FOR_REHYDRATION__" in text or "SIGI_STATE" in text:
+                                    desc_matches = re.findall(r'"desc"\s*:\s*"([^"]{10,80})"', text)
+                                    for desc in desc_matches[:5]:
+                                        products.append({
+                                            "source": "tiktok",
+                                            "name": _extract_product_name(desc, tag),
+                                            "trend_data": {"hashtag": f"#{tag}", "views": views, "growth_rate": 0},
+                                            "discovered_at": datetime.now(timezone.utc).isoformat(),
+                                        })
+                                    if desc_matches:
+                                        break
+                        await asyncio.sleep(1)
                     except Exception as e:
                         logger.warning(f"TikTok tag scrape failed for #{tag}: {e}")
 
         logger.info(f"TikTok scanner found {len(products)} products")
-        return products[:8]
+        return products[:10]
 
 
 class AmazonScanner:
@@ -150,7 +165,6 @@ class AmazonScanner:
         if category and category in self.MOVERS_URLS:
             urls = {category: self.MOVERS_URLS[category]}
         else:
-            # Pick top 3 categories to avoid too many requests
             for cat in ["Electronics", "Home & Kitchen", "Beauty"]:
                 urls[cat] = self.MOVERS_URLS[cat]
 
@@ -160,12 +174,57 @@ class AmazonScanner:
                     resp = await client.get(url, headers=_get_headers(2))
                     if resp.status_code == 200:
                         soup = BeautifulSoup(resp.text, "html.parser")
+
+                        # Try multiple selector strategies - Amazon frequently changes class names
                         items = soup.select("#zg-ordered-list li, .zg-item-immersion")
 
-                        for item in items[:5]:  # Top 5 per category
-                            name_el = item.select_one(".zg-text-center-align, ._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y, .p13n-sc-truncate, a[href*='/dp/']")
-                            price_el = item.select_one(".p13n-sc-price, ._cDEzb_p13n-sc-price_3mJ9Z, .a-price .a-offscreen")
-                            rank_el = item.select_one(".zg-badge-text, ._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y")
+                        # Fallback: look for any div/li with product links
+                        if not items:
+                            items = soup.select("div[data-asin], div[id*='gridItem']")
+
+                        # Fallback: broader approach - find all links to /dp/ product pages
+                        if not items:
+                            links = soup.select("a[href*='/dp/']")
+                            seen_names = set()
+                            for link in links[:15]:
+                                name = link.get_text(strip=True)
+                                if name and len(name) > 5 and len(name) < 200 and name not in seen_names:
+                                    seen_names.add(name)
+                                    # Find nearby image
+                                    parent = link.find_parent("div")
+                                    img_el = parent.select_one("img[src]") if parent else None
+                                    image_url = img_el.get("src", "") if img_el else ""
+                                    # Find nearby price
+                                    price = 0
+                                    price_el = parent.select_one(".a-price .a-offscreen, span.a-price span") if parent else None
+                                    if price_el:
+                                        price = _parse_price(price_el.get_text(strip=True))
+
+                                    products.append({
+                                        "source": "amazon",
+                                        "name": name[:80],
+                                        "image_url": image_url,
+                                        "trend_data": {
+                                            "rank_change": 0,
+                                            "category": cat_name,
+                                            "current_price": price,
+                                        },
+                                        "discovered_at": datetime.now(timezone.utc).isoformat(),
+                                    })
+                            if products:
+                                logger.info(f"Amazon: fallback link parsing found {len(products)} for {cat_name}")
+
+                        for item in items[:5]:
+                            name_el = item.select_one(
+                                ".zg-text-center-align, ._cDEzb_p13n-sc-css-line-clamp-1_1Fn1y, "
+                                ".p13n-sc-truncate, a[href*='/dp/'], "
+                                "span[class*='truncate'], div[class*='truncate'], "
+                                ".a-link-normal span"
+                            )
+                            price_el = item.select_one(
+                                ".p13n-sc-price, ._cDEzb_p13n-sc-price_3mJ9Z, "
+                                ".a-price .a-offscreen, span.a-price span"
+                            )
                             img_el = item.select_one("img[src]")
 
                             name = name_el.get_text(strip=True) if name_el else None
@@ -176,7 +235,6 @@ class AmazonScanner:
                             price = _parse_price(price_text)
                             image_url = img_el.get("src", "") if img_el else ""
 
-                            # Try to extract rank change percentage
                             rank_change = 0
                             percent_el = item.select_one(".zg-percent-change, .a-size-small")
                             if percent_el:
@@ -187,7 +245,7 @@ class AmazonScanner:
 
                             products.append({
                                 "source": "amazon",
-                                "name": name[:80],  # Truncate long names
+                                "name": name[:80],
                                 "image_url": image_url,
                                 "trend_data": {
                                     "rank_change": rank_change,

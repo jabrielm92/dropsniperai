@@ -23,15 +23,23 @@ export default function ProductDetail() {
 
   const fetchProduct = useCallback(async () => {
     try {
-      const [productRes, briefRes] = await Promise.all([
+      const [productRes, briefRes] = await Promise.allSettled([
         getProduct(id),
         getProductBrief(id)
       ]);
-      setProduct(productRes.data);
-      setBrief(briefRes.data);
+      if (productRes.status === 'fulfilled') {
+        setProduct(productRes.value.data);
+      } else {
+        toast.error('Product not found');
+        navigate('/products');
+        return;
+      }
+      if (briefRes.status === 'fulfilled') {
+        setBrief(briefRes.value.data);
+      }
     } catch (error) {
       toast.error('Failed to load product');
-      navigate('/dashboard');
+      navigate('/products');
     } finally {
       setLoading(false);
     }
@@ -120,14 +128,24 @@ export default function ProductDetail() {
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
           {/* Image */}
           <div className="relative rounded-xl overflow-hidden bg-[#121212]">
-            <img 
-              src={product.image_url} 
-              alt={product.name}
-              className="w-full aspect-square object-cover"
-            />
+            {product.image_url && !product.image_url.includes('google.com/search') ? (
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="w-full aspect-square object-cover"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            ) : (
+              <div className="w-full aspect-square bg-gradient-to-br from-white/[0.04] to-white/[0.01] flex items-center justify-center">
+                <div className="text-center px-8">
+                  <Package className="w-16 h-16 mx-auto mb-4 text-white/20" />
+                  <p className="text-white/40 text-lg">{product.name}</p>
+                </div>
+              </div>
+            )}
             <div className="absolute top-4 right-4">
-              <Badge className={`${product.overall_score >= 85 ? 'score-high' : product.overall_score >= 70 ? 'score-medium' : 'score-low'} text-2xl font-mono px-4 py-2`}>
-                {product.overall_score}
+              <Badge className={`${(product.overall_score || 0) >= 85 ? 'score-high' : (product.overall_score || 0) >= 70 ? 'score-medium' : 'score-low'} text-2xl font-mono px-4 py-2`}>
+                {product.overall_score || 0}
               </Badge>
             </div>
           </div>
@@ -135,18 +153,21 @@ export default function ProductDetail() {
           {/* Info */}
           <div>
             <div className="flex flex-wrap gap-2 mb-4">
-              {product.source_platforms?.map((platform, i) => (
-                <Badge key={i} variant="secondary" className="bg-secondary/10 text-secondary">
+              {(product.source_platforms || (product.source ? [product.source] : [])).map((platform, i) => (
+                <Badge key={i} variant="secondary" className="bg-secondary/10 text-secondary capitalize">
                   {platform}
                 </Badge>
               ))}
-              <Badge className={product.saturation_level === 'low' ? 'saturation-low' : product.saturation_level === 'medium' ? 'saturation-medium' : 'saturation-high'}>
-                {product.saturation_level} competition
-              </Badge>
+              {product.saturation_level && (
+                <Badge className={product.saturation_level === 'low' ? 'saturation-low' : product.saturation_level === 'medium' ? 'saturation-medium' : 'saturation-high'}>
+                  {product.saturation_level} competition
+                </Badge>
+              )}
             </div>
 
             <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-            <p className="text-muted-foreground mb-6">{product.description}</p>
+            {product.description && <p className="text-muted-foreground mb-6">{product.description}</p>}
+            {product.why_trending && !product.description && <p className="text-muted-foreground mb-6">{product.why_trending}</p>}
 
             {/* Price Box */}
             <Card className="bg-[#121212] border-primary/20 mb-6">
@@ -154,15 +175,15 @@ export default function ProductDetail() {
                 <div className="grid grid-cols-3 gap-6 text-center">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Source Cost</p>
-                    <p className="text-2xl font-mono font-bold">${product.source_cost.toFixed(2)}</p>
+                    <p className="text-2xl font-mono font-bold">${(product.source_cost || 0).toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Sell Price</p>
-                    <p className="text-2xl font-mono font-bold text-primary">${product.recommended_price.toFixed(2)}</p>
+                    <p className="text-2xl font-mono font-bold text-primary">${(product.recommended_price || 0).toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Margin</p>
-                    <p className="text-2xl font-mono font-bold text-primary">{product.margin_percent}%</p>
+                    <p className="text-2xl font-mono font-bold text-primary">{product.margin_percent || 0}%</p>
                   </div>
                 </div>
               </CardContent>
@@ -177,7 +198,7 @@ export default function ProductDetail() {
                     <div>
                       <p className="text-sm text-muted-foreground">Trend</p>
                       <p className={`font-mono font-bold ${product.trend_direction === 'up' ? 'text-primary' : product.trend_direction === 'down' ? 'text-destructive' : 'text-yellow-500'}`}>
-                        {product.trend_percent > 0 ? '+' : ''}{product.trend_percent}%
+                        {(product.trend_percent || 0) > 0 ? '+' : ''}{product.trend_percent || 0}%
                       </p>
                     </div>
                   </div>
@@ -189,7 +210,7 @@ export default function ProductDetail() {
                     <DollarSign className="w-5 h-5 text-secondary" />
                     <div>
                       <p className="text-sm text-muted-foreground">FB Ads</p>
-                      <p className="font-mono font-bold">{product.active_fb_ads}</p>
+                      <p className="font-mono font-bold">{product.active_fb_ads || 0}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -201,24 +222,35 @@ export default function ProductDetail() {
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span>Trend Score</span>
-                  <span className={getScoreColor(product.trend_score)}>{product.trend_score}</span>
+                  <span className={getScoreColor(product.trend_score || 0)}>{product.trend_score || 0}</span>
                 </div>
-                <Progress value={product.trend_score} className="h-2" />
+                <Progress value={product.trend_score || 0} className="h-2" />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
-                  <span>Competition Score</span>
-                  <span className={getScoreColor(product.competition_score)}>{product.competition_score}</span>
+                  <span>Overall Score</span>
+                  <span className={getScoreColor(product.overall_score || 0)}>{product.overall_score || 0}</span>
                 </div>
-                <Progress value={product.competition_score} className="h-2" />
+                <Progress value={product.overall_score || 0} className="h-2" />
               </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Profit Score</span>
-                  <span className={getScoreColor(product.profit_score)}>{product.profit_score}</span>
+              {product.competition_score != null && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Competition Score</span>
+                    <span className={getScoreColor(product.competition_score)}>{product.competition_score}</span>
+                  </div>
+                  <Progress value={product.competition_score} className="h-2" />
                 </div>
-                <Progress value={product.profit_score} className="h-2" />
-              </div>
+              )}
+              {product.profit_score != null && (
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Profit Score</span>
+                    <span className={getScoreColor(product.profit_score)}>{product.profit_score}</span>
+                  </div>
+                  <Progress value={product.profit_score} className="h-2" />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -232,6 +264,29 @@ export default function ProductDetail() {
           </TabsList>
 
           <TabsContent value="sourcing" className="mt-6">
+            {(!product.suppliers || product.suppliers.length === 0) && brief && (
+              <Card className="bg-[#121212] border-white/5 mb-4">
+                <CardContent className="p-6 text-center">
+                  <Truck className="w-8 h-8 mx-auto mb-3 text-white/20" />
+                  <p className="font-medium mb-1">Estimated Sourcing</p>
+                  <p className="text-sm text-muted-foreground mb-4">Based on AI analysis</p>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Unit Cost</p>
+                      <p className="text-lg font-mono font-bold">${(brief.unit_cost || 0).toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Shipping</p>
+                      <p className="text-lg font-mono font-bold">${(brief.shipping_cost || 0).toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Total Cost</p>
+                      <p className="text-lg font-mono font-bold text-primary">${(brief.total_cost || 0).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {product.suppliers?.map((supplier, i) => (
                 <Card key={i} className={`bg-[#121212] border-white/5 ${i === 0 ? 'border-primary/30 ring-1 ring-primary/20' : ''}`}>
@@ -312,17 +367,23 @@ export default function ProductDetail() {
                     <h3 className="font-bold mb-4">Market Stats</h3>
                     <div className="space-y-3">
                       <div className="flex justify-between p-3 bg-white/5 rounded-lg">
-                        <span className="text-muted-foreground">Shopify Stores</span>
-                        <span className="font-mono">{product.shopify_stores}</span>
+                        <span className="text-muted-foreground">Saturation</span>
+                        <span className="font-mono capitalize">{product.saturation_level || 'unknown'}</span>
                       </div>
                       <div className="flex justify-between p-3 bg-white/5 rounded-lg">
                         <span className="text-muted-foreground">Active FB Ads</span>
-                        <span className="font-mono">{product.active_fb_ads}</span>
+                        <span className="font-mono">{product.active_fb_ads || 0}</span>
                       </div>
                       <div className="flex justify-between p-3 bg-white/5 rounded-lg">
-                        <span className="text-muted-foreground">Search Volume</span>
-                        <span className="font-mono">{product.search_volume.toLocaleString()}/mo</span>
+                        <span className="text-muted-foreground">Source</span>
+                        <span className="font-mono capitalize">{product.source || 'unknown'}</span>
                       </div>
+                      {product.category && (
+                        <div className="flex justify-between p-3 bg-white/5 rounded-lg">
+                          <span className="text-muted-foreground">Category</span>
+                          <span className="font-mono">{product.category}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
