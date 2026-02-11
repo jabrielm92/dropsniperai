@@ -555,6 +555,16 @@ Return as JSON: {{"products": [...]}}"""
             yield send({"step": "ai_enrichment", "status": "error", "message": f"AI enrichment: {str(e)[:80]}"})
             products = all_raw[:10]  # Use raw data as fallback
 
+        # Step 2.5: Fetch real images for products missing them
+        yield send({"step": "images", "status": "scanning", "message": "Fetching real product images..."})
+        try:
+            from services.ai_scanner import _enrich_images
+            products = await _enrich_images(products)
+            img_count = sum(1 for p in products if p.get("image_url"))
+            yield send({"step": "images", "status": "done", "count": img_count, "message": f"Found {img_count} real product images"})
+        except Exception as e:
+            yield send({"step": "images", "status": "error", "message": f"Image fetch: {str(e)[:80]}"})
+
         # Step 3: Save results
         yield send({"step": "saving", "status": "scanning", "message": "Saving results to your dashboard..."})
 
