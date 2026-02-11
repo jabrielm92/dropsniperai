@@ -125,10 +125,27 @@ api_router.include_router(verification_router)
 @api_router.post("/launch-kit/{product_id}", response_model=LaunchKit)
 async def generate_launch_kit(product_id: str, user: User = Depends(get_current_user)):
     check_feature_access(user.subscription_tier, "launch_kit")
+    # Check seed products first, then daily_products (from scans)
     product = await db.products.find_one({"id": product_id}, {"_id": 0})
     if not product:
+        product = await db.daily_products.find_one({"id": product_id}, {"_id": 0})
+    if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    
+
+    # Daily products may lack fields required by Product model - fill defaults
+    product.setdefault("category", product.get("category", "General"))
+    product.setdefault("competition_score", product.get("overall_score", 50))
+    product.setdefault("profit_score", product.get("overall_score", 50))
+    product.setdefault("trend_percent", 0)
+    product.setdefault("search_volume", 0)
+    product.setdefault("shopify_stores", 0)
+    product.setdefault("source_platforms", [product.get("source", "unknown")])
+    product.setdefault("suppliers", [])
+    product.setdefault("active_fb_ads", 0)
+    product.setdefault("saturation_level", "medium")
+    product.setdefault("trend_direction", "stable")
+    product.setdefault("trend_score", product.get("overall_score", 50))
+
     product_obj = Product(**product)
     
     launch_kit = LaunchKit(
@@ -425,80 +442,44 @@ async def run_full_scan_stream(token: str = None):
         try:
             tiktok_products = await TikTokScanner().scan_trending()
             if not tiktok_products:
-                yield send({"step": "tiktok", "status": "scanning", "message": "TikTok: scraper returned 0, using AI fallback..."})
-                ai_result = await scanner.scan_source("tiktok", filters)
-                tiktok_products = ai_result.get("products", [])
-                yield send({"step": "tiktok", "status": "done", "count": len(tiktok_products), "message": f"TikTok: AI generated {len(tiktok_products)} products"})
+                yield send({"step": "tiktok", "status": "done", "count": 0, "message": "TikTok: could not reach Creative Center API. 0 products."})
             else:
                 yield send({"step": "tiktok", "status": "done", "count": len(tiktok_products), "message": f"TikTok: scraped {len(tiktok_products)} products"})
         except Exception as e:
-            try:
-                yield send({"step": "tiktok", "status": "scanning", "message": "TikTok: scraper error, using AI fallback..."})
-                ai_result = await scanner.scan_source("tiktok", filters)
-                tiktok_products = ai_result.get("products", [])
-                yield send({"step": "tiktok", "status": "done", "count": len(tiktok_products), "message": f"TikTok: AI generated {len(tiktok_products)} products"})
-            except Exception:
-                yield send({"step": "tiktok", "status": "error", "message": f"TikTok: {str(e)[:80]}"})
+            yield send({"step": "tiktok", "status": "error", "message": f"TikTok: {str(e)[:80]}"})
 
         amazon_products = []
         yield send({"step": "amazon", "status": "scanning", "message": "Scanning Amazon Movers & Shakers..."})
         try:
             amazon_products = await AmazonScanner().scan_movers_shakers()
             if not amazon_products:
-                yield send({"step": "amazon", "status": "scanning", "message": "Amazon: scraper returned 0, using AI fallback..."})
-                ai_result = await scanner.scan_source("amazon", filters)
-                amazon_products = ai_result.get("products", [])
-                yield send({"step": "amazon", "status": "done", "count": len(amazon_products), "message": f"Amazon: AI generated {len(amazon_products)} products"})
+                yield send({"step": "amazon", "status": "done", "count": 0, "message": "Amazon: could not scrape Best Sellers. 0 products."})
             else:
                 yield send({"step": "amazon", "status": "done", "count": len(amazon_products), "message": f"Amazon: scraped {len(amazon_products)} products"})
         except Exception as e:
-            try:
-                yield send({"step": "amazon", "status": "scanning", "message": "Amazon: scraper error, using AI fallback..."})
-                ai_result = await scanner.scan_source("amazon", filters)
-                amazon_products = ai_result.get("products", [])
-                yield send({"step": "amazon", "status": "done", "count": len(amazon_products), "message": f"Amazon: AI generated {len(amazon_products)} products"})
-            except Exception:
-                yield send({"step": "amazon", "status": "error", "message": f"Amazon: {str(e)[:80]}"})
+            yield send({"step": "amazon", "status": "error", "message": f"Amazon: {str(e)[:80]}"})
 
         ali_products = []
         yield send({"step": "aliexpress", "status": "scanning", "message": "Scanning AliExpress trending products..."})
         try:
             ali_products = await AliExpressScanner().scan_trending()
             if not ali_products:
-                yield send({"step": "aliexpress", "status": "scanning", "message": "AliExpress: scraper returned 0, using AI fallback..."})
-                ai_result = await scanner.scan_source("aliexpress", filters)
-                ali_products = ai_result.get("products", [])
-                yield send({"step": "aliexpress", "status": "done", "count": len(ali_products), "message": f"AliExpress: AI generated {len(ali_products)} products"})
+                yield send({"step": "aliexpress", "status": "done", "count": 0, "message": "AliExpress: could not scrape products. 0 products."})
             else:
                 yield send({"step": "aliexpress", "status": "done", "count": len(ali_products), "message": f"AliExpress: scraped {len(ali_products)} products"})
         except Exception as e:
-            try:
-                yield send({"step": "aliexpress", "status": "scanning", "message": "AliExpress: scraper error, using AI fallback..."})
-                ai_result = await scanner.scan_source("aliexpress", filters)
-                ali_products = ai_result.get("products", [])
-                yield send({"step": "aliexpress", "status": "done", "count": len(ali_products), "message": f"AliExpress: AI generated {len(ali_products)} products"})
-            except Exception:
-                yield send({"step": "aliexpress", "status": "error", "message": f"AliExpress: {str(e)[:80]}"})
+            yield send({"step": "aliexpress", "status": "error", "message": f"AliExpress: {str(e)[:80]}"})
 
         trends_products = []
         yield send({"step": "google_trends", "status": "scanning", "message": "Scanning Google Trends rising searches..."})
         try:
             trends_products = await GoogleTrendsScanner().scan_rising_terms()
             if not trends_products:
-                yield send({"step": "google_trends", "status": "scanning", "message": "Google Trends: scraper returned 0, using AI fallback..."})
-                ai_result = await scanner.scan_source("google_trends", filters)
-                trends_products = ai_result.get("products", [])
-                yield send({"step": "google_trends", "status": "done", "count": len(trends_products), "message": f"Google Trends: AI generated {len(trends_products)} products"})
+                yield send({"step": "google_trends", "status": "done", "count": 0, "message": "Google Trends: could not fetch rising terms. 0 products."})
             else:
                 yield send({"step": "google_trends", "status": "done", "count": len(trends_products), "message": f"Google Trends: scraped {len(trends_products)} products"})
         except Exception as e:
-            try:
-                yield send({"step": "google_trends", "status": "scanning", "message": "Google Trends: scraper error, using AI fallback..."})
-                ai_result = await scanner.scan_source("google_trends", filters)
-                trends_products = ai_result.get("products", [])
-                yield send({"step": "google_trends", "status": "done", "count": len(trends_products), "message": f"Google Trends: AI generated {len(trends_products)} products"})
-            except Exception:
-                yield send({"step": "google_trends", "status": "error", "message": f"Google Trends: {str(e)[:80]}"})
+            yield send({"step": "google_trends", "status": "error", "message": f"Google Trends: {str(e)[:80]}"})
 
         all_raw = tiktok_products + amazon_products + ali_products + trends_products
         source_stats = {
@@ -519,19 +500,24 @@ async def run_full_scan_stream(token: str = None):
         try:
             if raw_only:
                 products_summary = _json.dumps(raw_only[:20], default=str)
-                system_prompt = """You are a dropshipping product research expert. You will receive real scraped product data.
-Your job is to analyze, enrich, and score these products for dropshipping potential.
+                system_prompt = """You are a dropshipping product research expert. You will receive REAL scraped product data.
+Your job is to ANALYZE, ENRICH, and SCORE these products for dropshipping potential.
+CRITICAL: Only work with products from the scraped data. Do NOT invent new products.
+Keep original image_url and source from scraped data.
 You MUST respond with a JSON object containing a "products" array."""
                 filter_instructions = scanner._build_filter_instructions(filters)
                 user_prompt = f"""Real scraped data from multiple sources:
 
 {products_summary}
 
-For each product, provide enriched data:
-- name, source, estimated_views, source_cost, recommended_price
-- margin_percent, trend_score (1-100), overall_score (1-100), category
-- why_trending, saturation_level (low/medium/high), active_fb_ads (number)
-- trend_direction (up/down/stable)
+For EACH product in the scraped data above, provide enriched data:
+- name: Clean product name (from scraped data, don't invent new ones)
+- source: Original source (tiktok/amazon/aliexpress/google_trends)
+- image_url: Keep from scraped data if available, otherwise empty string
+- estimated_views (number), source_cost (number in USD), recommended_price (number in USD)
+- margin_percent (number), trend_score (1-100), overall_score (1-100), category
+- why_trending (specific reason), saturation_level (low/medium/high), trend_direction (up/down/stable)
+- active_fb_ads (number), competition_score (1-100), profit_score (1-100), search_volume (number)
 {filter_instructions}
 
 Return as JSON: {{"products": [...]}}"""
@@ -545,10 +531,10 @@ Return as JSON: {{"products": [...]}}"""
             # Merge AI fallback products that were already enriched per-source
             products = products + ai_fallback_products
 
-            if not products:
-                # Fallback: ask AI to generate from knowledge
-                result = await scanner.scan_trending_products(filters)
-                products = result.get("products", [])
+            if not products and not ai_fallback_products:
+                # No products at all - scrapers and AI both returned nothing
+                # Do NOT generate fake products from AI knowledge
+                yield send({"step": "ai_enrichment", "status": "warning", "message": "No products could be scraped from any source. Try again later."})
 
             yield send({"step": "ai_enrichment", "status": "done", "count": len(products), "message": f"AI enriched {len(products)} products with scores and analysis"})
         except Exception as e:

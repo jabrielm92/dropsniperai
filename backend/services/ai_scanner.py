@@ -1,6 +1,12 @@
 """
 AI Product Scanner - Uses OpenAI to analyze and discover trending products.
 Combines real web scraping data with AI analysis for enrichment and scoring.
+
+Key improvements:
+- Multiple image source fallbacks (AliExpress, Amazon CDN, product search)
+- AI enrichment only uses scraped data, never generates fake products
+- Better validation and field population for product detail page
+- Supplier data enrichment with real AliExpress data
 """
 import asyncio
 import json
@@ -16,33 +22,72 @@ logger = logging.getLogger(__name__)
 
 # Headers for image fetching
 _IMAGE_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
+    "sec-ch-ua": '"Chromium";v="131", "Not_A Brand";v="24"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
 }
 
 
 async def _fetch_product_image(product_name: str) -> str:
-    """Search AliExpress for a product and return a real image URL."""
+    """Search multiple sources for a real product image URL.
+
+    Strategy:
+    1. AliExpress search (script JSON + img tags)
+    2. Amazon search page (img tags)
+    """
     try:
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=12, follow_redirects=True) as client:
+            # Strategy 1: AliExpress search
             url = f"https://www.aliexpress.com/w/wholesale-{quote_plus(product_name)}.html"
-            resp = await client.get(url, headers=_IMAGE_HEADERS)
-            if resp.status_code == 200:
-                text = resp.text
-                # Extract image URLs from script data
-                img_matches = re.findall(r'"imgUrl"\s*:\s*"(https?://[^"]+\.(?:jpg|png|webp)[^"]*)"', text)
-                if img_matches:
-                    return img_matches[0]
-                # Fallback: extract from img tags
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(text, "html.parser")
-                for img in soup.select("img[src*='alicdn.com'], img[src*='ae01.alicdn']"):
-                    src = img.get("src", "")
-                    if src and ("jpg" in src or "png" in src or "webp" in src):
-                        if src.startswith("//"):
-                            src = "https:" + src
-                        return src
+            try:
+                resp = await client.get(url, headers=_IMAGE_HEADERS)
+                if resp.status_code == 200:
+                    text = resp.text
+                    # Extract from script JSON data
+                    img_matches = re.findall(
+                        r'"imgUrl"\s*:\s*"((?:https?:)?//[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
+                        text
+                    )
+                    for img in img_matches[:3]:
+                        if img.startswith("//"):
+                            img = "https:" + img
+                        if "alicdn.com" in img or "ae01." in img:
+                            return img
+
+                    # Fallback: parse img tags
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(text, "html.parser")
+                    for img_tag in soup.select("img[src*='alicdn.com'], img[src*='ae01.alicdn'], img[data-src*='alicdn']"):
+                        src = img_tag.get("src", img_tag.get("data-src", ""))
+                        if src and ("jpg" in src or "png" in src or "webp" in src):
+                            if src.startswith("//"):
+                                src = "https:" + src
+                            return src
+            except Exception as e:
+                logger.debug(f"AliExpress image fetch failed for '{product_name}': {e}")
+
+            # Strategy 2: Try Amazon search
+            try:
+                amazon_url = f"https://www.amazon.com/s?k={quote_plus(product_name)}"
+                resp = await client.get(amazon_url, headers={
+                    **_IMAGE_HEADERS,
+                    "Accept": "text/html,application/xhtml+xml",
+                })
+                if resp.status_code == 200:
+                    # Look for product images in the search results
+                    img_matches = re.findall(
+                        r'"(https://m\.media-amazon\.com/images/I/[^"]+\.(?:jpg|png|webp))"',
+                        resp.text
+                    )
+                    for img in img_matches[:3]:
+                        if "_AC_" in img or "_SL" in img or "_SX" in img:
+                            return img
+            except Exception as e:
+                logger.debug(f"Amazon image fetch failed for '{product_name}': {e}")
+
     except Exception as e:
         logger.debug(f"Image fetch failed for '{product_name}': {e}")
     return ""
@@ -52,10 +97,14 @@ async def _enrich_images(products: List[Dict]) -> List[Dict]:
     """Fetch real images for products that don't have valid image URLs."""
     async def _enrich_one(p):
         img = p.get("image_url", "")
-        if not img or "google.com/search" in img or len(img) < 10:
+        # Check if image is missing, a google redirect, or too short to be a real URL
+        if not img or "google.com/search" in img or len(img) < 10 or img.startswith("data:"):
             real_img = await _fetch_product_image(p.get("name", ""))
             if real_img:
                 p["image_url"] = real_img
+        # Fix protocol-relative URLs
+        elif img.startswith("//"):
+            p["image_url"] = "https:" + img
         return p
 
     # Fetch images concurrently (max 5 at a time)
@@ -73,6 +122,7 @@ class AIProductScanner:
     AI-powered product scanner that:
     1. Runs real web scrapers to gather raw product data
     2. Uses GPT-4o to enrich, score, and analyze the results
+    3. Never generates fake products - only enriches real scraped data
     """
 
     def __init__(self, openai_key: str):
@@ -90,7 +140,7 @@ class AIProductScanner:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.7,
-                max_tokens=3000,
+                max_tokens=4000,
             )
             content = response.choices[0].message.content
             return json.loads(content)
@@ -105,6 +155,7 @@ class AIProductScanner:
         """
         1. Scrape real data from Amazon, AliExpress, TikTok, Google Trends
         2. Send scraped data to GPT-4o for enrichment and scoring
+        3. If no scraped data at all, return empty rather than generating fake products
         """
         # Step 1: Run real scrapers
         from services.scanners import ProductScoutEngine
@@ -115,67 +166,66 @@ class AIProductScanner:
             raw_products = raw_results.get("products", [])
             source_stats = raw_results.get("source_stats", {})
         except Exception as e:
-            logger.warning(f"Real scrapers failed, falling back to AI-only: {e}")
+            logger.warning(f"Real scrapers failed: {e}")
             raw_products = []
             source_stats = {}
 
-        # Step 2: Enrich with AI
+        # Step 2: Enrich with AI (only if we have real data)
         filter_instructions = self._build_filter_instructions(filters)
 
         if raw_products:
             # We have real data - ask AI to enrich and score it
-            products_summary = json.dumps(raw_products[:20], default=str)
-            system_prompt = """You are a dropshipping product research expert. You will receive real scraped product data from multiple sources.
-Your job is to analyze, enrich, and score these products for dropshipping potential.
+            products_summary = json.dumps(raw_products[:25], default=str)
+            system_prompt = """You are a dropshipping product research expert. You will receive REAL scraped product data from multiple sources (TikTok, Amazon, AliExpress, Google Trends).
+
+Your job is to ANALYZE, ENRICH, and SCORE these REAL products for dropshipping potential.
+
+CRITICAL RULES:
+- You MUST only work with the products provided in the scraped data
+- Do NOT invent or add products that are not in the scraped data
+- Use the real data (prices, order counts, views, rank changes) to inform your scoring
+- Keep the original image_url from scraped data if present
+- Keep the original source from scraped data
+
 You MUST respond with a JSON object containing a "products" array."""
 
-            user_prompt = f"""Here is real product data scraped from TikTok, Amazon, AliExpress, and Google Trends:
+            user_prompt = f"""Here is REAL product data scraped just now from TikTok, Amazon, AliExpress, and Google Trends:
 
 {products_summary}
 
-For each product, provide enriched data:
-- name: Clean product name
-- source: Original source (tiktok/amazon/aliexpress/google_trends)
-- image_url: Keep the original image_url from the scraped data if available, otherwise leave empty
-- estimated_views: Estimated viral reach (use trend_data if available)
-- source_cost: Estimated supplier cost from AliExpress (number, use trend_data.price if available)
-- recommended_price: Recommended selling price (3-4x source cost) (number)
+For EACH product in the scraped data above, provide enriched data:
+- name: Clean product name (from the scraped data, don't invent new ones)
+- source: Original source from scraped data (tiktok/amazon/aliexpress/google_trends)
+- image_url: Keep the original image_url from the scraped data if available, otherwise leave empty string
+- estimated_views: Estimated viral reach (use trend_data views/video_count if available, otherwise estimate based on the product category)
+- source_cost: Supplier cost estimate in USD. If trend_data.price is available, use that. Otherwise estimate based on the product type.
+- recommended_price: Recommended selling price (2.5-4x source cost for good margins)
 - margin_percent: Profit margin percentage (number)
-- trend_score: How strong the trend is 1-100 (number)
-- overall_score: Overall dropshipping opportunity 1-100 (number)
-- category: Product category
-- why_trending: Brief reason why it's trending
-- saturation_level: low/medium/high based on competition
-- active_fb_ads: Estimated number of Facebook ads (number)
-- trend_direction: up/down/stable
+- trend_score: How strong the trend is 1-100 (use trend_data.growth_rate, rank_change, or order velocity to inform this)
+- overall_score: Overall dropshipping opportunity 1-100 (composite of trend, margin, competition)
+- category: Product category (Electronics, Beauty, Home & Kitchen, Fashion, Health, etc.)
+- why_trending: Brief 1-sentence reason why it's trending (be specific, reference the source)
+- saturation_level: low/medium/high based on competition signals
+- active_fb_ads: Estimated number of Facebook ads for this product type (number, be realistic)
+- trend_direction: up/down/stable (use trend_data if available)
+- competition_score: Competition favorability 1-100 (higher = less competition = better)
+- profit_score: Profit potential 1-100
+- search_volume: Estimated monthly search volume (number)
 {filter_instructions}
 
 Return as JSON: {{"products": [...]}}"""
         else:
-            # No scraper data - ask AI to identify trending products from its knowledge
-            system_prompt = """You are a dropshipping product research expert with knowledge of current trending products.
-You MUST respond with a JSON object containing a "products" array."""
-
-            user_prompt = f"""Identify 5-8 currently trending products that would be excellent for dropshipping.
-
-For each product provide:
-- name: Product name
-- source: Where it's trending (tiktok/amazon/aliexpress/google_trends)
-- image_url: Keep the original image_url from the scraped data if available, otherwise leave empty
-- estimated_views: Estimated viral reach (number)
-- source_cost: Estimated cost from AliExpress/supplier (number)
-- recommended_price: Recommended selling price (number)
-- margin_percent: Profit margin percentage (number)
-- trend_score: How strong the trend is 1-100 (number)
-- overall_score: Overall opportunity 1-100 (number)
-- category: Product category
-- why_trending: Brief reason why it's trending
-- saturation_level: low/medium/high
-- active_fb_ads: Estimated Facebook ads count (number)
-- trend_direction: up/down/stable
-{filter_instructions}
-
-Return as JSON: {{"products": [...]}}"""
+            # No scraper data at all - return empty result
+            logger.warning("All scrapers returned 0 products. Cannot enrich without real data.")
+            return {
+                "success": True,
+                "products": [],
+                "count": 0,
+                "source_stats": source_stats,
+                "raw_products_scraped": 0,
+                "message": "Scrapers could not reach external sources. Try again later or check your network connection.",
+                "scanned_at": datetime.now(timezone.utc).isoformat(),
+            }
 
         try:
             result = await self._call_openai_json(system_prompt, user_prompt)
@@ -203,12 +253,17 @@ Return as JSON: {{"products": [...]}}"""
             }
         except Exception as e:
             logger.error(f"AI enrichment failed: {e}")
-            # Return raw scraped data without AI enrichment
+            # Return raw scraped data without AI enrichment - still real data
             if raw_products:
+                # Add basic fields so products are usable
+                basic_products = []
+                for p in raw_products[:10]:
+                    basic = self._make_basic_product(p)
+                    basic_products.append(basic)
                 return {
                     "success": True,
-                    "products": raw_products[:10],
-                    "count": len(raw_products[:10]),
+                    "products": basic_products,
+                    "count": len(basic_products),
                     "source_stats": source_stats,
                     "ai_enrichment_failed": True,
                     "scanned_at": datetime.now(timezone.utc).isoformat(),
@@ -248,33 +303,37 @@ Return as JSON: {{"products": [...]}}"""
         if raw_products:
             products_summary = json.dumps(raw_products[:15], default=str)
             system_prompt = f"""You are a dropshipping expert specializing in {source} trends.
-Analyze the real scraped data and enrich it with scores and recommendations.
+Analyze the REAL scraped data below and enrich it with scores and recommendations.
+CRITICAL: Only work with products from the scraped data. Do NOT invent new products.
 You MUST respond with a JSON object containing a "products" array."""
 
             user_prompt = f"""Real scraped data from {source}:
 
 {products_summary}
 
-Enrich each product with:
-- name, source ("{source}"), image_url (keep from scraped data if available, otherwise leave empty),estimated_views, source_cost, recommended_price
-- margin_percent, trend_score (1-100), overall_score (1-100), category
-- why_trending, saturation_level (low/medium/high), trend_direction (up/down/stable)
+Enrich EACH product from the data above with:
+- name: Clean product name (from scraped data)
+- source: "{source}"
+- image_url: Keep from scraped data if available, otherwise empty string
+- estimated_views (number), source_cost (number in USD), recommended_price (number in USD)
+- margin_percent (number), trend_score (1-100), overall_score (1-100), category
+- why_trending (specific reason), saturation_level (low/medium/high), trend_direction (up/down/stable)
+- active_fb_ads (number), competition_score (1-100), profit_score (1-100), search_volume (number)
 {filter_instructions}
 
 Return as JSON: {{"products": [...]}}"""
         else:
-            system_prompt = f"""You are a dropshipping expert specializing in {source} trends.
-You MUST respond with a JSON object containing a "products" array."""
-
-            user_prompt = f"""{source_prompts.get(source, 'Find trending products.')}
-
-Identify 5-8 trending products from {source}.
-{filter_instructions}
-
-For each: name, source ("{source}"), image_url (keep from scraped data if available, otherwise leave empty),estimated_views, source_cost, recommended_price,
-margin_percent, trend_score (1-100), overall_score (1-100), category, trend_data, why_trending
-
-Return as JSON: {{"products": [...]}}"""
+            # No scraped data for this source - return empty
+            logger.warning(f"Scraper returned 0 products for {source}.")
+            return {
+                "success": True,
+                "source": source,
+                "products": [],
+                "count": 0,
+                "raw_scraped": 0,
+                "message": f"Could not scrape {source}. The site may be blocking requests. Try again later.",
+                "scanned_at": datetime.now(timezone.utc).isoformat(),
+            }
 
         try:
             result = await self._call_openai_json(system_prompt, user_prompt)
@@ -297,11 +356,12 @@ Return as JSON: {{"products": [...]}}"""
             }
         except Exception as e:
             if raw_products:
+                basic_products = [self._make_basic_product(p) for p in raw_products[:8]]
                 return {
                     "success": True,
                     "source": source,
-                    "products": raw_products[:8],
-                    "count": len(raw_products[:8]),
+                    "products": basic_products,
+                    "count": len(basic_products),
                     "ai_enrichment_failed": True,
                     "scanned_at": datetime.now(timezone.utc).isoformat(),
                 }
@@ -309,7 +369,6 @@ Return as JSON: {{"products": [...]}}"""
 
     async def analyze_product(self, product_name: str) -> Dict[str, Any]:
         """Deep analysis of a specific product with real competition data"""
-        # Get real competition data from Meta Ad Library and supplier data
         from services.scanners import MetaAdLibraryScanner, AliExpressScanner
 
         ad_data = {}
@@ -355,7 +414,6 @@ Return as JSON object."""
 
         try:
             analysis = await self._call_openai_json(system_prompt, user_prompt)
-            # Merge in real data
             if suppliers:
                 analysis["real_suppliers"] = suppliers[:5]
             if ad_data.get("total_ads"):
@@ -395,35 +453,106 @@ Return as JSON object."""
         return instructions
 
     def _validate_product(self, product: Dict) -> Optional[Dict]:
-        """Validate and clean a product dict, ensuring required numeric fields"""
+        """Validate and clean a product dict, ensuring all fields needed for product detail page"""
         if not product or not product.get("name"):
             return None
 
         try:
             name = str(product.get("name", "Unknown"))[:100]
-            # Use image_url from scraper data or AI response
             image_url = product.get("image_url", "")
+            if isinstance(image_url, str) and image_url.startswith("//"):
+                image_url = "https:" + image_url
+
+            source_cost = float(product.get("source_cost", 0) or 0)
+            recommended_price = float(product.get("recommended_price", 0) or 0)
+            margin_percent = float(product.get("margin_percent", 0) or 0)
+
+            # Auto-calculate margin if not provided
+            if not margin_percent and source_cost > 0 and recommended_price > source_cost:
+                margin_percent = round((recommended_price - source_cost) / recommended_price * 100, 1)
+
+            overall_score = max(0, min(100, int(product.get("overall_score", 50) or 50)))
+            trend_score = max(0, min(100, int(product.get("trend_score", 50) or 50)))
 
             return {
                 "name": name,
                 "image_url": image_url,
                 "source": str(product.get("source", "unknown")),
                 "estimated_views": int(product.get("estimated_views", 0) or 0),
-                "source_cost": float(product.get("source_cost", 0) or 0),
-                "recommended_price": float(product.get("recommended_price", 0) or 0),
-                "margin_percent": float(product.get("margin_percent", 0) or 0),
-                "trend_score": max(0, min(100, int(product.get("trend_score", 50) or 50))),
-                "overall_score": max(0, min(100, int(product.get("overall_score", 50) or 50))),
+                "source_cost": source_cost,
+                "recommended_price": recommended_price,
+                "margin_percent": margin_percent,
+                "trend_score": trend_score,
+                "overall_score": overall_score,
+                "competition_score": max(0, min(100, int(product.get("competition_score", overall_score) or overall_score))),
+                "profit_score": max(0, min(100, int(product.get("profit_score", overall_score) or overall_score))),
                 "category": str(product.get("category", "General"))[:50],
                 "why_trending": str(product.get("why_trending", ""))[:200],
                 "saturation_level": str(product.get("saturation_level", "medium")),
                 "active_fb_ads": int(product.get("active_fb_ads", 0) or 0),
                 "trend_direction": str(product.get("trend_direction", "stable")),
+                "trend_percent": float(product.get("trend_percent", 0) or 0),
+                "search_volume": int(product.get("search_volume", 0) or 0),
+                "shopify_stores": int(product.get("shopify_stores", 0) or 0),
+                "source_platforms": product.get("source_platforms", [str(product.get("source", "unknown"))]),
                 "trend_data": product.get("trend_data", {}),
             }
         except (ValueError, TypeError) as e:
             logger.warning(f"Product validation failed: {e} - {product.get('name', 'unknown')}")
             return None
+
+    def _make_basic_product(self, raw: Dict) -> Dict:
+        """Create a basic product from raw scraped data without AI enrichment.
+        Ensures all required fields are present for the product detail page."""
+        name = str(raw.get("name", "Unknown"))[:100]
+        source = str(raw.get("source", "unknown"))
+        image_url = raw.get("image_url", "")
+        if isinstance(image_url, str) and image_url.startswith("//"):
+            image_url = "https:" + image_url
+        trend_data = raw.get("trend_data", {})
+
+        # Extract price from trend_data
+        price = float(trend_data.get("price", trend_data.get("current_price", 0)) or 0)
+        # For Amazon products, the current_price is the retail price, source cost would be lower
+        source_cost = price * 0.3 if source == "amazon" and price > 0 else price
+        recommended_price = price if source == "amazon" else price * 3 if price > 0 else 0
+
+        orders = int(trend_data.get("orders_30d", 0) or 0)
+        growth = int(trend_data.get("growth_percent", trend_data.get("growth_rate", 0)) or 0)
+
+        # Score based on available data
+        if orders > 1000:
+            overall_score = min(95, 70 + (orders // 500))
+        elif growth > 100:
+            overall_score = min(90, 60 + (growth // 50))
+        else:
+            overall_score = 50
+
+        return {
+            "name": name,
+            "image_url": image_url,
+            "source": source,
+            "estimated_views": int(trend_data.get("views", trend_data.get("video_count", 0)) or 0),
+            "source_cost": round(source_cost, 2),
+            "recommended_price": round(recommended_price, 2),
+            "margin_percent": round((recommended_price - source_cost) / recommended_price * 100, 1) if recommended_price > source_cost else 0,
+            "trend_score": min(100, max(20, overall_score)),
+            "overall_score": overall_score,
+            "competition_score": 50,
+            "profit_score": 50,
+            "category": str(trend_data.get("category", "General")),
+            "why_trending": f"Trending on {source}",
+            "saturation_level": "medium",
+            "active_fb_ads": 0,
+            "trend_direction": str(trend_data.get("trend_direction", "up" if growth > 0 else "stable")),
+            "trend_percent": float(growth),
+            "search_volume": 0,
+            "shopify_stores": 0,
+            "source_platforms": [source],
+            "trend_data": trend_data,
+            "discovered_at": datetime.now(timezone.utc).isoformat(),
+            "ai_enriched": False,
+        }
 
 
 def create_scanner(openai_key: str) -> AIProductScanner:
